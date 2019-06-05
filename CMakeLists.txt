@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(mpc)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g")
 
 add_compile_options(-std=c++11)
 
@@ -33,6 +33,8 @@ add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
  )
+
+catkin_add_gtest(test_controller test/test_controller.cpp src/controller.cpp)
 
 ## Mark executables and/or libraries for installation
 #install(TARGETS ${PROJECT_NAME}_node

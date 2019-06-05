@@ -1,5 +1,5 @@
-#ifndef OBJECTPAR_H
-#define OBJECTPAR_H
+#ifndef STATE_H
+#define STATE_H
 #include "string"
 #include "iostream"
 #include "cmath"
@@ -66,6 +66,9 @@ class State
         : x(value), y(value), heading(value), speed(value), otime(value){};
     State()
         : x(-1), y(-1), heading(-1), speed(-1), otime(-1){};
+    explicit State(path_planner::StateMsg other)
+        : x(other.x), y(other.y), heading(other.heading), speed(other.speed), otime(other.time){}
+    State(State const &other)=default;
 
     void set(double &newx, double &newy, double &newheading, double &newspeed, double &newtime)
     {
@@ -114,6 +117,20 @@ class State
         state.speed = speed;
         state.time = otime;
         return state;
+    }
+
+    /**
+     * Note: squared distance
+     * TODO! -- should include heading distance
+     */
+    double getDistanceScore(const State &other) const
+    {
+        double timeDistance = otime - other.otime;
+        double headingDistance = (heading - other.heading) * (heading - other.heading); // why? I made it up that's why
+        double displacement = timeDistance * other.speed;
+        double dx = x - (other.x + sin(other.heading)*displacement);
+        double dy = y - (other.y + cos(other.heading)*displacement);
+        return (dx * dx + dy * dy) + headingDistance; // how do you score headings??
     }
 
     std::string toString()

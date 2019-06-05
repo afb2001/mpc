@@ -1,9 +1,18 @@
 #ifndef SRC_CONTROLLER_H
 #define SRC_CONTROLLER_H
 
+/**
+ * This is the maximum length of reference trajectory allowed. Longer trajectories will be truncated.
+ */
+#define MAX_LOOKAHEAD_STEPS 10
+
 #include "control_receiver.h"
 #include "State.h"
+#include "VehicleState.h"
+#include "current_estimator.h"
 #include <mutex>
+#include <random>
+#include "path_planner/Trajectory.h"
 
 using namespace std;
 
@@ -14,12 +23,6 @@ public:
     explicit Controller(ControlReceiver* controlReceiver);
 
     ~Controller();
-
-    /**
-     * Update the action request with a new trajectory.
-     * @param actionRequest new reference trajectory
-     */
-    void receiveRequest(State* actionRequest);
 
     /**
      * Update the action request with a new trajectory.
@@ -50,64 +53,97 @@ public:
      */
     void stopSendingControls();
 
+    /**
+     * Do approximate MPC by scoring potential trajectories starting from startCopy based on the
+     * reference trajectory until the current time reaches endTime. The best initial rudder and
+     * throttle are assigned to r and t.
+     *
+     * Over time this function increases first the number of states in the reference trajectory it
+     * scores against and then the granularity at which controls are generated. In the lookahead-increasing
+     * phase at each iteration an additional state on the trajectory is considered. That phase ends when
+     * MAX_LOOKAHEAD_DEPTH is reached, and the control-granularity-increasing phase begins. Note that
+     * no interpolation is done between states on the reference trajectory, so the granularity of the
+     * trajectory provided will not be altered. Please provide appropriate trajectories.
+     *
+     * @param r resulting rudder
+     * @param t resulting throttle
+     * @param startCopy starting point
+     * @param referenceTrajectoryCopy reference trajectory
+     * @param endTime end time
+     */
+    void MPC(double &r, double &t, State startCopy, vector<State> referenceTrajectoryCopy, double endTime);
+
+    /**
+     * Utility for getting the time. It's public for testing but it really doesn't matter much.
+     * @return the current time in seconds
+     */
+    static double getTime();
+
 private:
+
+    /**
+     * This class lets me have a stream of controls to iterate through without having to
+     * explicitly do the math where they're used.
+     */
+    class Control
+    {
+    public:
+        Control() : Control(10, 10) {};
+        Control(int rb, int tb) { rudderBase = rb; throttleBase = tb; rudderCounter = -rb; throttleCounter = tb; }
+        double incrementRudder() { rudderCounter++; return rudderCounter / rudderBase; }
+        double incrementThrottle() { throttleCounter--; return throttleCounter / throttleBase; }
+        void resetRudder() { rudderCounter = -(int)rudderBase; }
+        void resetThrottle() { throttleCounter = (int)throttleBase; }
+        bool rudderDone() { return rudderCounter > 10; }
+        bool throttleDone() { return throttleCounter < 0; }
+        double getRudder() { return rudderCounter / rudderBase; }
+        double getThrottle() { return throttleCounter / throttleBase; }
+    private:
+        double rudderBase, throttleBase;
+        int rudderCounter, throttleCounter;
+    };
 
     ControlReceiver* m_ControlReceiver;
 
-    //model parameter
-    double idle_rpm = 0.0;
-    double max_rpm = 3200.0;
-    double max_rpm_change_rate = 1000.0;
-    double prop_ratio = 0.389105058;
-    double prop_pitch = 20.0;
-    double max_rudder_angle = 30.0;
-    double rudder_coefficient = 0.25;
-    double rudder_distance = 2.0;
-    double mass = 2000.0;
-    double max_power = 8948.4;
-    double max_speed = 2.75;
-    //double probability[4] = {0.5,0.3,0.15,0.05};
-    double probability[4] = {0,1,0,0};
-    bool debug = true;
+    bool debug = false;
 
 
-    struct pointc
+    struct control
     {
-        double x, y, time;
-        pointc(double x1, double y1, double time1)
-                : x(x1), y(y1), time(time1){};
+        double rudder, throttle;
+        control(double r, double t):
+            rudder(r), throttle(t){};
     };
 
-    double max_prop_speed;
-    double max_force;
-    double prop_coefficient;
-    double drag_coefficient;
-
     mutex mtx;
-    bool running = true;
+    bool running = false;
     bool plan = false;
     State start;
-    State actions[4];
-//    string path = "";
-//    string default_Command = "0,0";
-//    int receivePipeFromParent;
-    double estimate_effect_speed = 0, estimate_effect_direction = 0;
-    double ptime = 0;
-    int iteration = 0;
-    bool update = true;
-    vector<pointc> future;
+    vector<State> referenceTrajectory;
 
-    double radians(double rudder_angle);
+    CurrentEstimator m_CurrentEstimator;
 
-//    void readpath(FILE *readstream);
+//    pair<double, double> estimatedCurrent;
+//    vector<pair<double, double>> estimatedCurrentVector;
+//    int currentEstimateIteration = 0;
 
-//    void requestAction();
+//    double ptime = 0;
+//    vector<State> future;
 
-    void estimate(double &rpm, double throttle, double d_time, double &speed, double rudder, double &heading, double &x, double &y);
-
-    void MPC(double &r, double &t);
+    static double getMPCWeight(int index);
 
     void sendAction();
+
+    /**
+     * Update the estimate of the current.
+     * @param startCopy starting state (copied for thread safety)
+     */
+//    void estimateCurrent(const State &startCopy);
+
+    double
+    score(const vector<State> &referenceTrajectoryCopy, vector<State> &futureStates, VehicleState state, double timeStep,
+          double minScore, int iterations, double endTime, double &r, double &t);
+
 };
 
 
