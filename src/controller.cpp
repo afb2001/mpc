@@ -11,8 +11,6 @@
 #include <string.h>
 #include <sstream>
 #include <cmath>
-//#include "State.h"
-//#include "VehicleState.h"
 #include <cfloat>
 #include <functional>
 #include <path_planner/Trajectory.h>
@@ -52,75 +50,10 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
 
     m_CurrentEstimator.updateEstimate(startCopy);
 
-//    double duration = 0.05;
-//    auto score = DBL_MAX; // higher score => more distance
-//    int count = 0;
-//    while (getTime() < endTime) {
-//        // set rudder and throttle randomly with a chance to use special values for each
-//        double throttle = distribution(randomEngine);
-//        if (throttle > 0.95) throttle = 0;
-//        else if (throttle > 0.85) throttle = 1.0;
-//        else throttle = distribution(randomEngine);
-//        double rudder = distribution(randomEngine);
-//        if (rudder > 0.95) rudder = 1.0;
-//        else if (rudder > 0.9) rudder = 0;
-//        else if (rudder > 0.85) rudder = -1;
-//        else rudder = (2 * distribution(randomEngine)) - 1;
-//
-//        double x1 = startCopy.x, y1 = startCopy.y, heading1 = startCopy.heading, speed1 = startCopy.speed, starttime = 0, rpm1 = rpm, d_time, temp = 0;
-//        vector<State> tempfuture;
-//        for (int index = 0; index < referenceTrajectoryCopy.size(); index++)
-//        {
-//            d_time = referenceTrajectoryCopy[index].otime - startCopy.otime;
-//            if(d_time < 0)
-//                continue;
-//            while (starttime + duration < d_time)
-//            {
-//                starttime += duration;
-//                estimate(rudder, throttle, duration, x1, y1, rpm1, speed1, heading1);
-//                if (tempfuture.size() < 10)
-//                {
-//                    tempfuture.emplace_back(x1, y1, heading1, speed1, startCopy.otime + starttime);
-//                }
-//            }
-//            if (starttime != d_time)
-//            {
-//                estimate(rudder, throttle, d_time - starttime, x1, y1, rpm1, speed1, heading1);
-//            }
-//            temp += (pow(x1 - referenceTrajectoryCopy[index].x, 2) +
-//                    pow(y1 - referenceTrajectoryCopy[index].y, 2)) * getMPCWeight(index);
-//        }
-//        if (score > temp)
-//        {
-//            r = (int)(rudder * 1000.0) / 1000.0;
-//            t = (int)(throttle * 1000.0) / 1000.0;
-//            score = temp;
-//            future = tempfuture;
-//        }
-//        count++;
-//    }
-
-    // timed loop
-//    int iterations;
-//    auto minScore = DBL_MAX;
-//    for (iterations = 1; getTime() < endTime; iterations++) {
-//        vector<State> tempFuture(iterations, State());
-////        cerr << iterations;
-//        double duration = (referenceTrajectoryCopy.back().otime - startCopy.otime) / iterations;
-//        double s = score(referenceTrajectoryCopy, tempFuture, VehicleState(startCopy, rpm), duration, minScore, iterations, endTime, r, t) / iterations;
-//        if (s < minScore) {
-//            minScore = s;
-//            future = tempFuture;
-//        }
-//    }
-//    cerr << minScore << endl;
-
-//    future = referenceTrajectoryCopy; // ahhhh
-
     vector<Control> controls;
     vector<VehicleState> futureStates;
     vector<double> scores;
-    int controlGranularity = 10; // 20 rudders, 20 throttles
+    int controlGranularity = 10; // 20 rudders, 10 throttles
     int iterations;
     auto minScore = DBL_MAX;
     for (iterations = 1;  getTime() < endTime; iterations++) {
@@ -154,7 +87,7 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
                 continue;
             }
             // Score the current state
-            double timeDiff = referenceTrajectoryCopy[i].otime - futureStates.back().otime; // back() should be same as [i]
+            double timeDiff = referenceTrajectoryCopy[i].time - futureStates.back().time; // back() should be same as [i]
             assert(timeDiff >= 0);
             auto newState = futureStates.back().estimate(c->getRudder(), c->getThrottle(), timeDiff, m_CurrentEstimator.getCurrent());
             double s = referenceTrajectoryCopy[i].getDistanceScore(newState) * getMPCWeight(i) + scores.back();
@@ -170,7 +103,7 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
             // estimating current
             else {
                 if (s / n < minScore) {
-                    minScore = s;
+                    minScore = s / n;
                     r = (int)(controls.front().getRudder() * 1000.0) / 1000.0;
                     t = (int)(controls.front().getThrottle() * 1000.0) / 1000.0;
                     vector<State> future;
@@ -183,48 +116,9 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
         }
     }
 
-//    cerr << future.front().x << " " << future.front().y << " " << future.front().otime << endl;
+//    cerr << future.front().x << " " << future.front().y << " " << future.front().time << endl;
     cerr << "Managed " << iterations << " iterations of MPC" << endl;
 }
-
-// always setting controls to be the last ones?
-double Controller::score(const vector<State>& referenceTrajectoryCopy, vector<State>& futureStates, VehicleState state, double timeStep, double minScore, int iterations, double endTime, double &r, double &t)
-{
-    if (iterations < 1) return 0;
-//    cerr << "getTime: " << getTime() << " endTime: " << endTime << endl;
-     for (int i = -50; i <= 50; i++) {
-         double rudder = i / 50.0;
-         for (int j = 10; j >= 0; j--) {
-             if (getTime() >= endTime) return minScore;
-             double throttle = j / 10.0;
-             VehicleState newState = state.estimate(rudder, throttle, timeStep, m_CurrentEstimator.getCurrent());
-             // score at closest point on reference trajectory
-             auto scoreTemp = 0.0; // DBL_MAX;
-             for (int index = 0; index < referenceTrajectoryCopy.size(); index++) {
-                 if (fabs(referenceTrajectoryCopy[index].otime - newState.otime) < 1.0) {
-                     double s = referenceTrajectoryCopy[index].getDistanceScore(newState) * getMPCWeight(index);
-//                 if (s < scoreTemp) scoreTemp = s;
-                     scoreTemp += s;
-                 }
-             }
-
-             if (scoreTemp + scoreTemp > minScore) continue; // short circuit bad iterations
-
-             scoreTemp += score(referenceTrajectoryCopy, futureStates, newState, timeStep, minScore, iterations - 1, endTime, r, t);
-//             newState.score += scoreTemp;
-             if (scoreTemp < minScore) {
-//                 cerr << "Got score " << newState.score << endl;
-                 minScore = scoreTemp;
-                 r = (int) (rudder * 1000.0) / 1000.0;
-                 t = (int) (throttle * 1000.0) / 1000.0;
-                 // update future states for current estimation
-                 futureStates[futureStates.size() - iterations] = newState;
-             }
-         }
-     }
-     return minScore;
-}
-
 
 void Controller::sendAction()
 {
@@ -280,7 +174,8 @@ void Controller::stopSendingControls()
 }
 
 double Controller::getMPCWeight(int index) {
-    return 2 * MAX_LOOKAHEAD_STEPS - index;
+    return 1;
+//    return 2 * MAX_LOOKAHEAD_STEPS - index;
 }
 
 

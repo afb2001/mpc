@@ -7,29 +7,30 @@ class CurrentEstimator {
 public:
     CurrentEstimator(){ resetCurrentEstimate(); }
     void updateEstimate(const State &currentState) {
-        if (previousTime != currentState.otime && !predictedTrajectory.empty()) {
-            previousTime = currentState.otime;
+        if (previousTime != 0 && previousTime != currentState.time && !predictedTrajectory.empty()) {
             int index = 0;
             for (int i = 1; i < predictedTrajectory.size(); i++) {
-                if (currentState.otime <= predictedTrajectory[i].otime) {
-                    index = (fabs(predictedTrajectory[i].otime - currentState.otime) <
-                            fabs(predictedTrajectory[i - 1].otime - currentState.otime)) ?
+                if (currentState.time <= predictedTrajectory[i].time) {
+                    index = (fabs(predictedTrajectory[i].time - currentState.time) <
+                            fabs(predictedTrajectory[i - 1].time - currentState.time)) ?
                                     i : i - 1;
                     break;
                 }
             }
-            if (predictedTrajectory[index].otime <= 0) return; // if the states are invalid don't estimate current
+            if (predictedTrajectory[index].time <= 0) return; // if the states are invalid don't estimate current
             auto old = estimatedCurrentVector[currentEstimateIteration];
             estimatedCurrent.first -= old.first / estimatedCurrentVector.size();
             estimatedCurrent.second -= old.second / estimatedCurrentVector.size();
-            double dtime = predictedTrajectory[index].otime - (predictedTrajectory[0].otime - 0.05);
-            old.first = (currentState.x - predictedTrajectory[index].x) / dtime;
-            old.second = (currentState.y - predictedTrajectory[index].y) / dtime;
+            double dtime = predictedTrajectory[index].time - (predictedTrajectory[0].time - (currentState.time - previousTime));
+            old.first += (currentState.x - predictedTrajectory[index].x) / dtime;
+            old.second += (currentState.y - predictedTrajectory[index].y) / dtime;
             estimatedCurrent.first += old.first / estimatedCurrentVector.size();
             estimatedCurrent.second += old.second / estimatedCurrentVector.size();
             estimatedCurrentVector[currentEstimateIteration] = old;
             currentEstimateIteration = (currentEstimateIteration + 1) % estimatedCurrentVector.size();
         }
+        // if the trajectory is empty still update the old time
+        previousTime = currentState.time;
     }
 
     pair<double, double> getCurrent() {

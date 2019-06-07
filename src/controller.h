@@ -4,10 +4,10 @@
 /**
  * This is the maximum length of reference trajectory allowed. Longer trajectories will be truncated.
  */
-#define MAX_LOOKAHEAD_STEPS 10
+#define MAX_LOOKAHEAD_STEPS 20
 
 #include "control_receiver.h"
-#include "State.h"
+#include "path_planner/State.h"
 #include "VehicleState.h"
 #include "current_estimator.h"
 #include <mutex>
@@ -94,7 +94,7 @@ private:
         double incrementThrottle() { throttleCounter--; return throttleCounter / throttleBase; }
         void resetRudder() { rudderCounter = -(int)rudderBase; }
         void resetThrottle() { throttleCounter = (int)throttleBase; }
-        bool rudderDone() { return rudderCounter > 10; }
+        bool rudderDone() { return rudderCounter > rudderBase; }
         bool throttleDone() { return throttleCounter < 0; }
         double getRudder() { return rudderCounter / rudderBase; }
         double getThrottle() { return throttleCounter / throttleBase; }
@@ -103,10 +103,9 @@ private:
         int rudderCounter, throttleCounter;
     };
 
+
+
     ControlReceiver* m_ControlReceiver;
-
-    bool debug = false;
-
 
     struct control
     {
@@ -123,27 +122,9 @@ private:
 
     CurrentEstimator m_CurrentEstimator;
 
-//    pair<double, double> estimatedCurrent;
-//    vector<pair<double, double>> estimatedCurrentVector;
-//    int currentEstimateIteration = 0;
-
-//    double ptime = 0;
-//    vector<State> future;
-
     static double getMPCWeight(int index);
 
     void sendAction();
-
-    /**
-     * Update the estimate of the current.
-     * @param startCopy starting state (copied for thread safety)
-     */
-//    void estimateCurrent(const State &startCopy);
-
-    double
-    score(const vector<State> &referenceTrajectoryCopy, vector<State> &futureStates, VehicleState state, double timeStep,
-          double minScore, int iterations, double endTime, double &r, double &t);
-
 };
 
 

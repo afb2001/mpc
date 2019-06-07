@@ -1,7 +1,7 @@
 #ifndef SRC_VEHICLESTATE_H
 #define SRC_VEHICLESTATE_H
 
-#include "State.h"
+#include "path_planner/State.h"
 
 using namespace std;
 
@@ -50,7 +50,7 @@ public:
         state.x += delta * sin(state.heading) + estimatedCurrent.first * d_time;
         state.y += delta * cos(state.heading) + estimatedCurrent.second * d_time;
 
-        state.otime += d_time;
+        state.time += d_time;
 
         return state;
     }

@@ -53,11 +53,31 @@ TEST(ControllerUnitTests, goWest)
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
 
+TEST(ControllerUnitTests, realStateTest1)
+{
+    Controller controller(nullptr);
+    VehicleState start(State(0,0,2,2.3,7));
+    vector<State> reference;
+    double r, t;
+    reference.push_back(start.estimate(0.806, 0.765, 5, pair<double,double>(0,0)));
+    controller.MPC(r, t, start, reference, Controller::getTime() + 0.05);
+    EXPECT_LT(fabs(r - 0.806), 0.001);
+    EXPECT_LT(fabs(t - 0.765), 0.001);
+}
+
 TEST(CurrentEstimatorTests, currentEstimatorTest1)
 {
     CurrentEstimator currentEstimator;
     vector<State> reference;
-    // TODO
+    currentEstimator.updateEstimate(State(0,0,0,0,1));
+    reference.emplace_back(0,0,0,0,1.05);
+    currentEstimator.updatePredictedTrajectory(reference);
+    pair<double,double> p(0,0);
+    EXPECT_LT(fabs(currentEstimator.getCurrent().second - p.second), 0.001);
+    currentEstimator.updateEstimate(State(0,0.1,0,0,1.05));
+    p.second = 0.1 / 50 / 0.05;
+    // floating point math makes me do this instead of equality comparison
+    EXPECT_LT(fabs(currentEstimator.getCurrent().second - p.second), 0.001);
 }
 
 int main(int argc, char **argv){

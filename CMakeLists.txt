@@ -20,9 +20,9 @@ catkin_package(
   CATKIN_DEPENDS geometry_msgs roscpp project11 path_planner
 )
 
-include_directories(
-# include
+include_directories(include
   ${catkin_INCLUDE_DIRS}
+  ${pathplanner_INCLUDE_DIRS}
 )
 
 add_executable(${PROJECT_NAME}_node src/mpc_node.cpp src/controller.cpp)
