@@ -31,6 +31,12 @@ public:
     void receiveRequest(const path_planner::Trajectory::ConstPtr& trajectory);
 
     /**
+     * Update the controller's idea of the current state of the vehicle.
+     * @param state the updated state
+     */
+    void updatePosition(State state);
+
+    /**
      * Starts a thread for doing MPC and issuing controls.
      */
     void startRunning();
@@ -79,6 +85,8 @@ public:
      */
     static double getTime();
 
+    State estimateStateInFuture(double timeAheadFromNow);
+
 private:
 
     /**
@@ -103,22 +111,15 @@ private:
         int rudderCounter, throttleCounter;
     };
 
-
-
     ControlReceiver* m_ControlReceiver;
-
-    struct control
-    {
-        double rudder, throttle;
-        control(double r, double t):
-            rudder(r), throttle(t){};
-    };
 
     mutex mtx;
     bool running = false;
     bool plan = false;
     State start;
     vector<State> referenceTrajectory;
+
+    vector<pair<double,double>> m_FutureControls;
 
     CurrentEstimator m_CurrentEstimator;
 

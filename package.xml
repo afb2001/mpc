@@ -15,11 +15,13 @@
   <build_depend>roscpp</build_depend>
   <build_depend>rosbag</build_depend>
   <build_depend>project11</build_depend>
+  <build_depend>message_generation</build_depend>
   <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>geographic_msgs</build_export_depend>
   <build_export_depend>marine_msgs</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>rosbag</build_export_depend>
+  <exec_depend>message_runtime</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>geographic_msgs</exec_depend>
   <exec_depend>marine_msgs</exec_depend>

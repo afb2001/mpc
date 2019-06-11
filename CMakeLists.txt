@@ -14,6 +14,18 @@ find_package(catkin REQUIRED COMPONENTS
     project11
     genmsg
     path_planner
+    actionlib_msgs
+)
+
+add_service_files(
+        FILES
+        EstimateState.srv
+)
+
+generate_messages(
+        DEPENDENCIES
+        std_msgs
+        path_planner
 )
 
 catkin_package(
@@ -25,7 +37,9 @@ include_directories(include
   ${pathplanner_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}_node src/mpc_node.cpp src/controller.cpp)
+add_executable(${PROJECT_NAME}_node
+        src/mpc_node.cpp
+        src/controller.cpp)
 
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)

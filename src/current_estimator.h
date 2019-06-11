@@ -43,6 +43,8 @@ public:
 
     void resetCurrentEstimate() { estimatedCurrentVector = vector<pair<double,double>>(50); }
 
+    const vector<State>& getPredictedTrajectory() { return predictedTrajectory; }
+
 private:
     pair<double, double> estimatedCurrent;
     vector<pair<double, double>> estimatedCurrentVector;
