@@ -27,13 +27,18 @@
 #include "geographic_visualization_msgs/GeoVizItem.h"
 #include "geographic_visualization_msgs/GeoVizPointList.h"
 
-//#include "control_receiver.h"
 #include "controller.h"
 
-
+/**
+ * ROS node which manages a model-predictive controller.
+ */
 class MPCNode: public TrajectoryDisplayer, public ControlReceiver
 {
 public:
+    /**
+     * Construct a MPCNode, setting up all the ROS publishers, subscribers and services, and initialize a Controller
+     * instance.
+     */
     explicit MPCNode() : TrajectoryDisplayer()
     {
         m_helm_pub = m_node_handle.advertise<marine_msgs::Helm>("/helm",1);
@@ -46,19 +51,26 @@ public:
 
         m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
 
-        m_Controller = new Controller(this);
+        m_Controller = new Controller(this, this);
     }
 
+    /**
+     * Tell the Controller instance to terminate before freeing it.
+     */
     ~MPCNode() final
     {
         m_Controller->terminate(); // make sure its thread can exit
         delete m_Controller;
     }
 
+    /**
+     * Process a message for the controller.
+     * @param inmsg the string message
+     */
     void controllerMsgsCallback(const std_msgs::String::ConstPtr &inmsg)
     {
-        string message = inmsg->data;
-        std::cerr << "MPC node received message to: " << message << endl;
+        std::string message = inmsg->data;
+        std::cerr << "MPC node received message to: " << message << std::endl;
         if (message == "start running") {
             m_Controller->startRunning();
         } else if (message == "start sending controls") {
@@ -70,21 +82,37 @@ public:
         }
     }
 
+    /**
+     * Update the reference trajectory of the controller.
+     * @param inmsg the new reference trajectory.
+     */
     void referenceTrajectoryCallback(const path_planner::Trajectory::ConstPtr &inmsg)
     {
         m_Controller->receiveRequest(inmsg);
     }
 
+    /**
+     * Update the controller's idea of the vehicle's heading.
+     * @param inmsg a message containing the new heading
+     */
     void headingCallback(const marine_msgs::NavEulerStamped::ConstPtr& inmsg)
     {
         m_current_heading = inmsg->orientation.heading * M_PI / 180.0;
     }
 
+    /**
+     * Update the controller's idea of the vehicle's speed.
+     * @param inmsg a message containing the new speed
+     */
     void speedCallback(const geometry_msgs::TwistStamped::ConstPtr& inmsg)
     {
         m_current_speed = inmsg->twist.linear.x; // this will change once /sog is a vector
     }
 
+    /**
+     * Update the controller's idea of the vehicle's position.
+     * @param inmsg a message containing the new position
+     */
     void positionCallback(const geometry_msgs::PoseStamped::ConstPtr &inmsg)
     {
         m_Controller->updatePosition(State(
@@ -95,6 +123,11 @@ public:
                 inmsg->header.stamp.toNSec() / 1.0e9));
     }
 
+    /**
+     * Publish a rudder and throttle to /helm.
+     * @param rudder rudder command
+     * @param throttle throttle command
+     */
     void receiveControl(double rudder, double throttle) final
     {
         marine_msgs::Helm helm;
@@ -104,12 +137,12 @@ public:
         m_helm_pub.publish(helm);
     }
 
-    void displayTrajectory(vector<State> trajectory, bool plannerTrajectory) override
-    {
-        TrajectoryDisplayer::displayTrajectory(trajectory, plannerTrajectory);
-        cerr << "Displayed controller trajectory" << endl;
-    }
-
+    /**
+     * Handle a service call requesting an estimate of a state in the future.
+     * @param req the request (continaing a time)
+     * @param res the response (containing a State)
+     * @return whether the service call succeeded
+     */
     bool estimateStateInFuture(mpc::EstimateState::Request &req, mpc::EstimateState::Response &res) {
 //        cerr << "Received service call " << endl;
         auto s = m_Controller->estimateStateInFuture(req.desiredTime);
@@ -121,10 +154,7 @@ private:
     double m_current_speed;
     double m_current_heading;
 
-//    ros::NodeHandle m_node_handle;
-
     ros::Publisher m_helm_pub;
-//    ros::Publisher m_display_pub;
 
     ros::Subscriber m_controller_msgs_sub;
     ros::Subscriber m_reference_trajectory_sub;
@@ -133,12 +163,13 @@ private:
     ros::Subscriber m_speed_sub;
 
     ros::ServiceServer m_estimate_state_service;
+
     Controller* m_Controller;
 };
 
 int main(int argc, char **argv)
 {
-    std::cerr << "Starting MPC node" << endl;
+    std::cerr << "Starting MPC node" << std::endl;
     ros::init(argc, argv, "mpc");
     MPCNode node;
     ros::spin();

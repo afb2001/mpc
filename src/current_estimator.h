@@ -1,12 +1,25 @@
 #include <utility>
+#include <mutex>
 
 #ifndef SRC_CURRENTESTIMATOR_H
 #define SRC_CURRENTESTIMATOR_H
 
+/**
+ * This class is responsible for estimating the current (or other outside forces acting on the vehicle).
+ */
 class CurrentEstimator {
 public:
+    /**
+     * Construct a CurrentEstimator that assumes <0, 0> current to start off.
+     */
     CurrentEstimator(){ resetCurrentEstimate(); }
-    void updateEstimate(const State &currentState) {
+
+    /**
+     * Update the estimate of the current with where we are and where we thought we would be.
+     * @param currentState the updated state of the vehicle
+     * @param predictedTrajectory the old predicted trajectory
+     */
+    void updateEstimate(const State &currentState, const std::vector<State>& predictedTrajectory) {
         if (previousTime != 0 && previousTime != currentState.time && !predictedTrajectory.empty()) {
             int index = 0;
             for (int i = 1; i < predictedTrajectory.size(); i++) {
@@ -33,24 +46,24 @@ public:
         previousTime = currentState.time;
     }
 
-    pair<double, double> getCurrent() {
+    /**
+     * Get an estimate of the forces acting on the vehicle.
+     * @return a pair of doubles representing the m/s of displacement in <x, y>
+     */
+    std::pair<double, double> getCurrent() {
         return estimatedCurrent;
     }
 
-    void updatePredictedTrajectory(vector<State> trajectory) {
-        predictedTrajectory = std::move(trajectory);
-    }
-
-    void resetCurrentEstimate() { estimatedCurrentVector = vector<pair<double,double>>(50); }
-
-    const vector<State>& getPredictedTrajectory() { return predictedTrajectory; }
+    /**
+     * Reset the estimate of the current to <0, 0> m/s.
+     */
+    void resetCurrentEstimate() { estimatedCurrentVector = std::vector<std::pair<double,double>>(50); }
 
 private:
-    pair<double, double> estimatedCurrent;
-    vector<pair<double, double>> estimatedCurrentVector;
+    std::pair<double, double> estimatedCurrent;
+    std::vector<std::pair<double, double>> estimatedCurrentVector;
     int currentEstimateIteration = 0;
     double previousTime = 0;
-    vector<State> predictedTrajectory;
 };
 
 #endif //SRC_CURRENTESTIMATOR_H

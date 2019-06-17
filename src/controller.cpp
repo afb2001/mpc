@@ -1,24 +1,13 @@
-//#include <iostream>
-//#include <fstream>
-//#include <limits>
-//#include <chrono>
 #include <thread>
-//#include <mutex>
-//#include <queue>
-//#include <stack>
-//#include <string>
-//#include <string.h>
-//#include <sstream>
-//#include <cmath>
-//#include <cfloat>
-//#include <functional>
 #include <path_planner/Trajectory.h>
+#include <path_planner/TrajectoryDisplayer.h>
 #include "controller.h"
 
 using namespace std;
 
-Controller::Controller(ControlReceiver *controlReceiver) {
+Controller::Controller(ControlReceiver *controlReceiver, TrajectoryDisplayer *trajectoryDisplayer) {
     m_ControlReceiver = controlReceiver;
+    m_TrajectoryDisplayer = trajectoryDisplayer;
 }
 
 Controller::~Controller() = default;
@@ -47,20 +36,29 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
     if (referenceTrajectoryCopy.empty())
         return;
 
-    m_CurrentEstimator.updateEstimate(startCopy);
+    m_FutureStuffMutex.lock();
+    m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
+    m_FutureStuffMutex.unlock();
 
     vector<Control> controls;
     vector<VehicleState> futureStates;
+    vector<pair<double,double>> futureControls;
     vector<State> future;
     vector<double> scores;
-    int controlGranularity = 10; // 20 rudders, 10 throttles
+    int rudderGranularity = 5, throttleGranularity = 4; // 10 rudders, 4 throttles
     int iterations;
     auto minScore = DBL_MAX;
     for (iterations = 1;  getTime() < endTime; iterations++) {
-        bool filledTrajectory = iterations >= referenceTrajectoryCopy.size();
-        if (filledTrajectory) controlGranularity += controlGranularity;
+        cerr << "Last iteration min score was " << minScore << endl;
+        minScore = DBL_MAX;
+        bool filledTrajectory = iterations > referenceTrajectoryCopy.size();
+        if (filledTrajectory) {
+            rudderGranularity += rudderGranularity;
+            throttleGranularity += throttleGranularity;
+        }
         int n = filledTrajectory ? referenceTrajectoryCopy.size() : iterations;
-        controls = vector<Control>(n, Control(controlGranularity, controlGranularity));
+        controls.clear();
+        controls = vector<Control>(n, Control(rudderGranularity, throttleGranularity));
         futureStates.clear();
         futureStates.emplace_back(startCopy);
         scores.clear();
@@ -70,7 +68,8 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
         // index futureStates and scores, but those should be able to use back() instead, and conceptually that
         // makes a little more sense to me, as I'm treating them as stacks.
         while (i >= 0) {
-            if (getTime() >= endTime) break; // let's be as real-time as possible
+//            cerr << "Depth = " << i << endl;
+            if (getTime() >= endTime) return; // let's be as real-time as possible
             auto c = &controls[i];
             // If we're done with this throttle (used all rudders), increment it and reset the rudders
             if (c->rudderDone()) {
@@ -86,14 +85,18 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
                 scores.pop_back();
                 continue;
             }
+            cerr << "Trying ";
+            for (int k = 0; k <= i; k++) cerr << controls[k].getRudder() << ", " << controls[k].getThrottle() << "; ";
+            cerr << "at depth " << i << endl;
             // Score the current state
-            double timeDiff = referenceTrajectoryCopy[i].time - futureStates.back().time; // back() should be same as [i]
+            double timeDiff = referenceTrajectoryCopy[i].time - futureStates[i].time; // back() should be same as [i]
             assert(timeDiff >= 0);
-            auto newState = futureStates.back().estimate(c->getRudder(), c->getThrottle(), timeDiff, m_CurrentEstimator.getCurrent());
-            double s = referenceTrajectoryCopy[i].getDistanceScore(newState) * getMPCWeight(i) + scores.back();
+            auto newState = futureStates[i].estimate(c->getRudder(), c->getThrottle(), timeDiff, m_CurrentEstimator.getCurrent());
+            double s = referenceTrajectoryCopy[i].getDistanceScore(newState) * getMPCWeight(i) + scores[i];
+//            if (c->getRudder() == 0 && c->getThrottle() == 1) cerr << "Score: " << s << endl;
             // If we're not at a leaf in the control tree, push the state and score and increment the trajectory index
             if (i < n - 1) {
-                if (s / i <= minScore) { // prune off bad iterations
+                if (s / n <= minScore) { // prune off bad iterations
                     futureStates.push_back(newState);
                     scores.push_back(s);
                     i++;
@@ -106,21 +109,24 @@ void Controller::MPC(double &r, double &t, State startCopy, vector<State> refere
                     minScore = s / n;
                     r = (int)(controls.front().getRudder() * 1000.0) / 1000.0;
                     t = (int)(controls.front().getThrottle() * 1000.0) / 1000.0;
-                    cerr << n << " states on the reference trajectory considered" << endl;
+//                    cerr << "New min score " << minScore << " with " << r << ", " << t << endl;
+//                    cerr << i + 1 << " states on the reference trajectory considered" << endl;
                     future.clear();
                     for (auto a : futureStates) future.push_back(a);
-                    m_FutureControls.clear();
-                    for (auto c : controls) m_FutureControls.emplace_back(c.getRudder(), c.getThrottle());
+                    futureControls.clear();
+                    for (auto c : controls) futureControls.emplace_back(c.getRudder(), c.getThrottle());
                 }
             }
             // Increment the rudder because we're finished with that control pair at this depth
             c->incrementRudder();
         }
+        m_FutureStuffMutex.lock();
+        m_PredictedTrajectory = future;
+        cerr << "Controller picked a trajectory of length " << m_PredictedTrajectory.size() << endl;
+        m_FutureControls = futureControls;
+        m_FutureStuffMutex.unlock();
     }
-    m_CurrentEstimator.updatePredictedTrajectory(future);
-    m_ControlReceiver->displayTrajectory(future, false);
-
-    cerr << "Managed " << iterations << " iterations of MPC" << endl;
+//    cerr << "Managed " << iterations << " iterations of MPC" << endl;
 }
 
 void Controller::sendAction()
@@ -139,7 +145,10 @@ void Controller::sendAction()
             vector<State> referenceTrajectoryCopy(referenceTrajectory);
             mtx.unlock();
             // actually do MPC
-            MPC(rudder, throttle, startCopy, referenceTrajectoryCopy, getTime() + 0.1);
+            MPC(rudder, throttle, startCopy, referenceTrajectoryCopy, getTime() + 0.25);
+            cerr << "Controller picked a trajectory of length " << m_PredictedTrajectory.size() << endl;
+            if (m_ControlReceiver) m_TrajectoryDisplayer->displayTrajectory(m_PredictedTrajectory, false);
+            else cerr << "Did not display trajectory of length " << m_PredictedTrajectory.size() << endl;
 //                cerr << "rudder: " << rudder << endl;
             m_ControlReceiver->receiveControl(rudder, throttle);
         } else {
@@ -177,38 +186,44 @@ void Controller::stopSendingControls()
 }
 
 double Controller::getMPCWeight(int index) {
-    return 1;
-//    return 2 * MAX_LOOKAHEAD_STEPS - index;
+//    return 1;
+    return MAX_LOOKAHEAD_STEPS - index;
 }
 
 State Controller::estimateStateInFuture(double desiredTime) {
+//    cerr << "Estimating state " << desiredTime - start.time << "s in the future" << endl;
     VehicleState s = State(-1);
     double r, t;
+    m_FutureStuffMutex.lock();
+    assert(m_PredictedTrajectory.empty() == m_FutureControls.empty());
     if (m_FutureControls.empty()) {
         cerr << "Error: cannot estimate a state in the future because future controls are unknown." << endl;
+        m_FutureStuffMutex.unlock();
         return s;
     }
     // find furthest future state earlier than desiredTime
-    for (int i = 0; i < m_CurrentEstimator.getPredictedTrajectory().size(); i++) {
-        if (m_CurrentEstimator.getPredictedTrajectory()[i].time >= desiredTime) {
+    for (int i = 0; i < m_PredictedTrajectory.size(); i++) {
+        if (m_PredictedTrajectory.at(i).time >= desiredTime) {
             // grab previous state
             if (i != 0) {
-                s = m_CurrentEstimator.getPredictedTrajectory()[i - 1];
-                r = m_FutureControls[i - 1].first;
-                t = m_FutureControls[i - 1].second;
+                s = m_PredictedTrajectory.at(i - 1);
+                r = m_FutureControls.at(i - 1).first;
+                t = m_FutureControls.at(i - 1).second;
             } else {
                 cerr << "Error: desired time in the past for entire predicted trajectory." << endl;
+                m_FutureStuffMutex.unlock();
                 return s;
             }
             break;
         }
     }
     // if we didn't assign in that loop it was the last one
-    if (s.time == -1) {
-        s = m_CurrentEstimator.getPredictedTrajectory().back();
+    if (s.time == -1 && !m_PredictedTrajectory.empty()) {
+        s = m_PredictedTrajectory.back();
         r = m_FutureControls.back().first;
         t = m_FutureControls.back().second;
     }
+    m_FutureStuffMutex.unlock();
     // take return an estimate at the desired time based on the controls
     return s.estimate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrent());
 }

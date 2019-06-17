@@ -14,18 +14,28 @@
 #include <random>
 #include "path_planner/Trajectory.h"
 
-using namespace std;
-
+/**
+ * Class which runs model predictive control and maintains everything required for it.
+ * Model predictive control runs on its own thread. This class exposes member functions to update the current state of
+ * the vehicle and the desired trajectory, but MPC can run regardless of when those are updated as long as it has been
+ * started and not paused or terminated.
+ */
 class Controller
 {
 public:
 
-    explicit Controller(ControlReceiver* controlReceiver);
+    /**
+     * Construct a Controller. It needs an instance of a ControlReceiver to publish rudder and throttle
+     * pairs, and a TrajectoryDisplayer to display trajectories.
+     * @param controlReceiver interface which accepts rudders and throttles for publishing
+     * @param trajectoryDisplayer interface which accepts trajectories for displaying
+     */
+    explicit Controller(ControlReceiver *controlReceiver, TrajectoryDisplayer *trajectoryDisplayer);
 
     ~Controller();
 
     /**
-     * Update the action request with a new trajectory.
+     * Update the reference trajectory.
      * @param trajectory new reference trajectory
      */
     void receiveRequest(const path_planner::Trajectory::ConstPtr& trajectory);
@@ -77,7 +87,7 @@ public:
      * @param referenceTrajectoryCopy reference trajectory
      * @param endTime end time
      */
-    void MPC(double &r, double &t, State startCopy, vector<State> referenceTrajectoryCopy, double endTime);
+    void MPC(double &r, double &t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime);
 
     /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
@@ -85,13 +95,19 @@ public:
      */
     static double getTime();
 
-    State estimateStateInFuture(double timeAheadFromNow);
+    /**
+     * Estimate where we will be at the specified time according to the most recent projected trajectory.
+     * @param desiredTime the desired time (must be in the future)
+     * @return an estimate of the state we'll be in at desiredTime
+     */
+    State estimateStateInFuture(double desiredTime);
 
 private:
 
     /**
      * This class lets me have a stream of controls to iterate through without having to
      * explicitly do the math where they're used.
+     * No documentation is provided because it's really just internal and self-explanatory.
      */
     class Control
     {
@@ -112,17 +128,25 @@ private:
     };
 
     ControlReceiver* m_ControlReceiver;
+    TrajectoryDisplayer* m_TrajectoryDisplayer;
 
-    mutex mtx;
+    std::mutex mtx;
     bool running = false;
     bool plan = false;
     State start;
-    vector<State> referenceTrajectory;
+    std::vector<State> referenceTrajectory;
 
-    vector<pair<double,double>> m_FutureControls;
+    std::mutex m_FutureStuffMutex;
+    std::vector<std::pair<double,double>> m_FutureControls;
+    std::vector<State> m_PredictedTrajectory;
 
     CurrentEstimator m_CurrentEstimator;
 
+    /**
+     * Get the score weight for a state along the reference trajectory at the given index
+     * @param index index of the state on the reference trajectory
+     * @return a weight for the score
+     */
     static double getMPCWeight(int index);
 
     void sendAction();
