@@ -13,6 +13,7 @@
 #include <mutex>
 #include <random>
 #include "path_planner/Trajectory.h"
+#include "path_planner/TrajectoryDisplayer.h"
 
 /**
  * Class which runs model predictive control and maintains everything required for it.
@@ -30,7 +31,7 @@ public:
      * @param controlReceiver interface which accepts rudders and throttles for publishing
      * @param trajectoryDisplayer interface which accepts trajectories for displaying
      */
-    explicit Controller(ControlReceiver *controlReceiver, TrajectoryDisplayer *trajectoryDisplayer);
+    explicit Controller(ControlReceiver *controlReceiver);
 
     ~Controller();
 
@@ -128,7 +129,6 @@ private:
     };
 
     ControlReceiver* m_ControlReceiver;
-    TrajectoryDisplayer* m_TrajectoryDisplayer;
 
     std::mutex mtx;
     bool running = false;

@@ -51,7 +51,7 @@ public:
 
         m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
 
-        m_Controller = new Controller(this, this);
+        m_Controller = new Controller(this);
     }
 
     /**
@@ -118,8 +118,8 @@ public:
         m_Controller->updatePosition(State(
                 inmsg->pose.position.x,
                 inmsg->pose.position.y,
-                m_current_speed,
                 m_current_heading,
+                m_current_speed,
                 inmsg->header.stamp.toNSec() / 1.0e9));
     }
 
@@ -135,6 +135,11 @@ public:
         helm.throttle = throttle;
         helm.header.stamp = ros::Time::now();
         m_helm_pub.publish(helm);
+    }
+
+    void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) final
+    {
+        TrajectoryDisplayer::displayTrajectory(trajectory, plannerTrajectory);
     }
 
     /**

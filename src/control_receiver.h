@@ -16,6 +16,7 @@ public:
      * @param throttle a throttle command in the interval [0, 1]
      */
     virtual void receiveControl(double rudder, double throttle) = 0;
+    virtual void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) = 0;
 };
 
 
