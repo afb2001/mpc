@@ -157,10 +157,10 @@ void Controller::MPC(double &r, double &t)
         else if (estimate_effect_direction > 2 * M_PI)
             estimate_effect_direction = fmod(estimate_effect_direction, M_PI * 2);
     }
-    if(debug)
-    {
-        estimate_effect_speed = 0;
-    }
+//    if(debug)
+//    {
+//        estimate_effect_speed = 0;
+//    }
     //  estimate_effect_direction = 1.57;
     //     estimate_effect_speed = 1;
 //    cerr << "current estimate " << estimate_effect_speed << " " << estimate_effect_direction << endl;
