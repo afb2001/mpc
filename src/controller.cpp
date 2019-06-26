@@ -126,11 +126,11 @@ void Controller::MPC(double &r, double &t)
 
     double coefficient = DBL_MAX;
 
-    if (ptime != startCopy.otime && !future.empty() && update)
+    if (ptime != startCopy.time && !future.empty() && update)
     {
         if (iteration < 50)
             ++iteration;
-        ptime = startCopy.otime;
+        ptime = startCopy.time;
         double cx = startCopy.x;
         double cy = startCopy.y;
         int index = 0;
@@ -179,7 +179,7 @@ void Controller::MPC(double &r, double &t)
             vector<pointc> tempfuture;
             for (int index = 0; index < 4; index++)
             {
-                d_time = actionsCopy[index].otime - startCopy.otime;
+                d_time = actionsCopy[index].time - startCopy.time;
                 if(d_time < 0)
                     continue;
                 while (starttime + duration < d_time)
@@ -188,7 +188,7 @@ void Controller::MPC(double &r, double &t)
                     estimate(rpm1, throttle, duration, speed1, rudder, heading1, x1, y1);
                     if (tempfuture.size() < 10)
                     {
-                        tempfuture.emplace_back(x1, y1, startCopy.otime + starttime);
+                        tempfuture.emplace_back(x1, y1, startCopy.time + starttime);
                     }
                     // cerr << rudder<< " " << throttle << " " << x1 << " " << y1 << " " << speed1 << " " << heading1 << endl;
                 }
