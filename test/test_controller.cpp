@@ -13,7 +13,7 @@ TEST(ControllerUnitTests, goNowhere)
     vector<State> reference;
     reference.emplace_back(0,0,0,0,7);
     double r, t;
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
 //    EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 0.0);
 }
@@ -26,7 +26,7 @@ TEST(ControllerUnitTests, goNorth)
     double r, t;
     reference.emplace_back(0,0.02,0,0.1,Controller::getTime() + 1);
     reference.emplace_back(0,3.5,0,2,Controller::getTime() + 2);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.05);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.05);
     EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
@@ -39,7 +39,7 @@ TEST(ControllerUnitTests, goEast)
     double r, t;
     reference.emplace_back(1,0,M_PI/2,2.5,Controller::getTime() + 1);
     reference.emplace_back(3.5,0,M_PI/2,2.5,Controller::getTime() + 2);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_DOUBLE_EQ(r, 1);
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
@@ -52,7 +52,7 @@ TEST(ControllerUnitTests, goWest)
     double r, t;
     reference.emplace_back(-1,0,-M_PI/2,2.5,Controller::getTime() + 1);
     reference.emplace_back(-3.5,0,-M_PI/2,2.5,Controller::getTime() + 2);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_DOUBLE_EQ(r, -1);
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
@@ -64,7 +64,7 @@ TEST(ControllerUnitTests, realStateTest1)
     vector<State> reference;
     double r, t;
     reference.push_back(start.estimate(0.8, 0.75, 5, pair<double,double>(0,0)));
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_LT(fabs(r - 0.8), 0.001);
     EXPECT_LT(fabs(t - 0.75), 0.001);
 }
@@ -80,7 +80,7 @@ TEST(ControllerUnitTests, trajectoryDepthTest1)
     reference.push_back(vs);
     vs.time += 0.2;
     reference.push_back(vs);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_LT(fabs(r), 0.001);
     EXPECT_LT(fabs(t - 1), 0.001);
 }
@@ -96,7 +96,7 @@ TEST(ControllerUnitTests, turnAroundTest1)
     reference.emplace_back(0, -6, M_PI, 2, 10);
     reference.emplace_back(0, -8, M_PI, 2, 11);
     reference.emplace_back(0, -10, M_PI, 2, 12);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_DOUBLE_EQ(fabs(r), 1);
     EXPECT_LT(t, 0.3);
 }
@@ -113,7 +113,7 @@ TEST(ControllerUnitTests, futureEstimateTest1)
     reference.push_back(s1);
     reference.push_back(s2);
     reference.push_back(s3);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_DOUBLE_EQ(r, 0.8);
     EXPECT_DOUBLE_EQ(t, 1);
     auto r1 = controller.estimateStateInFuture(4.75);
@@ -132,7 +132,7 @@ TEST(ControllerUnitTests, futureEstimateTest2)
     reference.push_back(s1);
     reference.push_back(s2);
     reference.push_back(s3);
-    controller.MPC(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_DOUBLE_EQ(r, 0.8);
     EXPECT_DOUBLE_EQ(t, 1);
     auto r1 = controller.estimateStateInFuture(5);

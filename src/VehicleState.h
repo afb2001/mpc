@@ -67,6 +67,7 @@ public:
             state.y += delta * cos(state.heading) + estimatedCurrent.second * d_time;
 
             state.time += d_time;
+//            std::cerr << "Heading difference: " << yaw_rate*d_time << std::endl;
 //            std::cerr << state.toString() << std::endl;
         }
         return state;

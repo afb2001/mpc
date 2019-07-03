@@ -19,7 +19,8 @@
  * Class which runs model predictive control and maintains everything required for it.
  * Model predictive control runs on its own thread. This class exposes member functions to update the current state of
  * the vehicle and the desired trajectory, but MPC can run regardless of when those are updated as long as it has been
- * started and not paused or terminated.
+ * started and not paused or terminated. If you want it to do anything useful, though, you need to at least update the
+ * position.
  */
 class Controller
 {
@@ -88,7 +89,7 @@ public:
      * @param referenceTrajectoryCopy reference trajectory
      * @param endTime end time
      */
-    void MPC(double &r, double &t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime);
+    void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime);
 
     /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
@@ -114,18 +115,18 @@ private:
     {
     public:
         Control() : Control(10, 10) {};
-        Control(int rb, int tb) { rudderBase = rb; throttleBase = tb; rudderCounter = -rb; throttleCounter = tb; }
-        double incrementRudder() { rudderCounter++; return rudderCounter / rudderBase; }
-        double incrementThrottle() { throttleCounter--; return throttleCounter / throttleBase; }
-        void resetRudder() { rudderCounter = -(int)rudderBase; }
-        void resetThrottle() { throttleCounter = (int)throttleBase; }
-        bool rudderDone() { return rudderCounter > rudderBase; }
-        bool throttleDone() { return throttleCounter < 0; }
-        double getRudder() { return rudderCounter / rudderBase; }
-        double getThrottle() { return throttleCounter / throttleBase; }
+        Control(int rb, int tb) { m_RudderBase = rb; m_ThrottleBase = tb; m_RudderCounter = -rb; m_ThrottleCounter = tb; }
+        double incrementRudder() { m_RudderCounter++; return m_RudderCounter / m_RudderBase; }
+        double incrementThrottle() { m_ThrottleCounter--; return m_ThrottleCounter / m_ThrottleBase; }
+        void resetRudder() { m_RudderCounter = -(int)m_RudderBase; }
+        void resetThrottle() { m_ThrottleCounter = (int)m_ThrottleBase; }
+        bool rudderDone() { return m_RudderCounter > m_RudderBase; }
+        bool throttleDone() { return m_ThrottleCounter < 0; }
+        double getRudder() { return m_RudderCounter / m_RudderBase; }
+        double getThrottle() { return m_ThrottleCounter / m_ThrottleBase; }
     private:
-        double rudderBase, throttleBase;
-        int rudderCounter, throttleCounter;
+        double m_RudderBase, m_ThrottleBase;
+        int m_RudderCounter, m_ThrottleCounter;
     };
 
     ControlReceiver* m_ControlReceiver;
@@ -133,8 +134,8 @@ private:
     std::mutex mtx;
     bool running = false;
     bool plan = false;
-    State start;
-    std::vector<State> referenceTrajectory;
+    State m_CurrentLocation;
+    std::vector<State> m_ReferenceTrajectory;
 
     std::mutex m_FutureStuffMutex;
     std::vector<std::pair<double,double>> m_FutureControls;
