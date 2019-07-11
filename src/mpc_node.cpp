@@ -88,7 +88,11 @@ public:
      */
     void referenceTrajectoryCallback(const path_planner::Trajectory::ConstPtr &inmsg)
     {
-        m_Controller->receiveRequest(inmsg);
+        std::vector<State> states;
+        for (const auto &s : inmsg->states) {
+            states.push_back(getState(s));
+        }
+        m_Controller->receiveRequest(states);
     }
 
     /**
@@ -151,7 +155,7 @@ public:
     bool estimateStateInFuture(mpc::EstimateState::Request &req, mpc::EstimateState::Response &res) {
 //        cerr << "Received service call " << endl;
         auto s = m_Controller->estimateStateInFuture(req.desiredTime);
-        res.state = (path_planner::StateMsg)s;
+        res.state = getStateMsg(s);
         return s.time != -1;
     }
 

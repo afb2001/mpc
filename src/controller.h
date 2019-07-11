@@ -40,7 +40,7 @@ public:
      * Update the reference trajectory.
      * @param trajectory new reference trajectory
      */
-    void receiveRequest(const path_planner::Trajectory::ConstPtr& trajectory);
+    void receiveRequest(const std::vector<State>& trajectory);
 
     /**
      * Update the controller's idea of the current state of the vehicle.

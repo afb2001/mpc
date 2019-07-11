@@ -18,15 +18,16 @@ double Controller::getTime()
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
-void Controller::receiveRequest(const path_planner::Trajectory::ConstPtr& trajectory)
+void Controller::receiveRequest(const std::vector<State>& trajectory)
 {
     mtx.lock();
 //    start.set(trajectory->states[0]);
-    m_ReferenceTrajectory.clear();
-    for (int i = 1; i < trajectory->states.size() && i < MAX_LOOKAHEAD_STEPS; i++)
-    {
-        m_ReferenceTrajectory.emplace_back(State(trajectory->states[i]));
-    }
+//    m_ReferenceTrajectory.clear();
+//    for (int i = 1; i < trajectory->states.size() && i < MAX_LOOKAHEAD_STEPS; i++)
+//    {
+//        m_ReferenceTrajectory.emplace_back(State(trajectory->states[i]));
+//    }
+    m_ReferenceTrajectory = trajectory;
     mtx.unlock();
 }
 
