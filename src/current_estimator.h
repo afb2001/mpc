@@ -19,7 +19,7 @@ public:
      * @param currentState the updated state of the vehicle
      * @param predictedTrajectory the old predicted trajectory
      */
-    void updateEstimate(const State &currentState, const std::vector<State>& predictedTrajectory) {
+    void updateEstimate(const State &currentState, const std::vector<VehicleState>& predictedTrajectory) {
         if (previousTime != 0 && previousTime != currentState.time && !predictedTrajectory.empty()) {
             int index = 0;
             for (int i = 1; i < predictedTrajectory.size(); i++) {

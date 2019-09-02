@@ -45,7 +45,7 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
     vector<Control> controls;
     vector<VehicleState> futureStates;
     vector<pair<double,double>> futureControls;
-    vector<State> future;
+    vector<VehicleState> future;
     vector<double> scores;
     int rudderGranularity = 5, throttleGranularity = 4; // 10 rudders, 4 throttles
     int iterations;
@@ -166,7 +166,9 @@ void Controller::sendAction()
             // actually do MPC
             mpc(rudder, throttle, startCopy, referenceTrajectoryCopy, getTime() + 0.25);
 //            cerr << "Controller picked a trajectory of length " << m_PredictedTrajectory.size() << endl;
-            if (m_ControlReceiver) m_ControlReceiver->displayTrajectory(m_PredictedTrajectory, false);
+            std::vector<State> trajectory;
+            for (const auto& v : m_PredictedTrajectory) trajectory.push_back(v);
+            if (m_ControlReceiver) m_ControlReceiver->displayTrajectory(trajectory, false);
             else cerr << "Did not display trajectory of length " << m_PredictedTrajectory.size() << endl;
 //                cerr << "rudder: " << rudder << endl;
             m_ControlReceiver->receiveControl(rudder, throttle);

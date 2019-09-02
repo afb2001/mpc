@@ -139,7 +139,7 @@ private:
 
     std::mutex m_FutureStuffMutex;
     std::vector<std::pair<double,double>> m_FutureControls;
-    std::vector<State> m_PredictedTrajectory;
+    std::vector<VehicleState> m_PredictedTrajectory;
 
     CurrentEstimator m_CurrentEstimator;
 
