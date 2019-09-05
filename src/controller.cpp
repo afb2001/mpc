@@ -50,10 +50,18 @@ void Controller::receiveRequest(const path_planner::Trajectory::ConstPtr& trajec
 {
     mtx.lock();
     assert(trajectory->states.size() >= 5);
-    start.set(trajectory->states[0]);
+    start.x = trajectory->states[0].x;
+    start.y = trajectory->states[0].y;
+    start.heading = trajectory->states[0].heading;
+    start.speed = trajectory->states[0].speed;
+    start.time = trajectory->states[0].time;
     for (int i = 1; i < 5; i++)
     {
-        actions[i-1].set(trajectory->states[i]);
+        actions[i-1].x = trajectory->states[i].x;
+        actions[i-1].y = trajectory->states[i].y;
+        actions[i-1].heading = trajectory->states[i].heading;
+        actions[i-1].speed = trajectory->states[i].speed;
+        actions[i-1].time = trajectory->states[i].time;
     }
     mtx.unlock();
 }
