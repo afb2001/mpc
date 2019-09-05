@@ -124,7 +124,7 @@ public:
                 inmsg->pose.position.y,
                 m_current_heading,
                 m_current_speed,
-                inmsg->header.stamp.toNSec() / 1.0e9));
+                ros::Time::now().toNSec() / 1.0e9));
     }
 
     /**
