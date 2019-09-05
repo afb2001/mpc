@@ -158,8 +158,7 @@ void Controller::sendAction()
 
             // grab current starting position and reference trajectory
             mtx.lock();
-            State startCopy;
-            startCopy.set(m_CurrentLocation);
+            State startCopy(m_CurrentLocation);
             vector<State> referenceTrajectoryCopy;
             for (const auto& s : m_ReferenceTrajectory) if (s.time > m_CurrentLocation.time) referenceTrajectoryCopy.push_back(s);
             mtx.unlock();
@@ -212,7 +211,8 @@ double Controller::getMPCWeight(int index) {
 }
 
 State Controller::estimateStateInFuture(double desiredTime) {
-//    cerr << "Estimating state " << desiredTime - start.time << "s in the future" << endl;
+//    cerr << "Estimating state " << desiredTime - m_CurrentLocation.time << "s in the future" << endl;
+//    cerr << "Current location is " << m_CurrentLocation.toString() << endl;
 //    cerr << m_FutureControls.size() << endl;
     VehicleState s = State(-1);
     double r, t;
