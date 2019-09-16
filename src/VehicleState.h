@@ -20,55 +20,23 @@ public:
         rpm = idle_rpm + (state.speed / max_speed) * (max_rpm - idle_rpm);
     }
 
-    /**
-     * Generate the state achieved by applying the given rudder and throttle for the given duration to this state.
-     * @param rudder desired rudder
-     * @param throttle desired throttle
-     * @param t duration of controls
-     * @param estimatedCurrent estimate of the <x,y> effect of the current (in m/s)
-     * @return the resulting state
-     */
-    VehicleState estimate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent) const {
+    VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent) {
+        std::vector<VehicleState> simulated;
+        return simulate(rudder, throttle, t, estimatedCurrent, simulated);
+    }
+
+    VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent,
+            std::vector<VehicleState>& predictedStates) {
         if (rudder < -1) rudder = -1;
         else if (rudder > 1) rudder = 1;
         if (throttle < 0) throttle = 0;
         else if (throttle > 1) throttle = 1;
         VehicleState state(*this);
+        predictedStates.push_back(state);
         while (t > 0) {
-            double d_time = t < 0.1 ? t : 0.1;
+            double dTime = t < 0.1 ? t : 0.1;
             t -= 0.1;
-            double target_rpm = idle_rpm + throttle * (max_rpm - idle_rpm);
-            double rcr = (target_rpm - state.rpm) / d_time;
-
-            if (rcr > max_rpm_change_rate) rcr = max_rpm_change_rate;
-            else if (rcr < -max_rpm_change_rate) rcr = -max_rpm_change_rate;
-
-            state.rpm += rcr * d_time;
-
-            double prop_rpm = prop_ratio * state.rpm;
-            double prop_speed = prop_rpm / prop_pitch;
-            double rudder_speed = fmax(sqrt(prop_speed), state.speed);
-            double thrust = prop_coefficient * (prop_speed * prop_speed - state.speed * state.speed);
-            double rudder_angle = rudder * max_rudder_angle;
-            double thrust_fwd = thrust * cos(rudder_angle);
-            double rudder_speed_yaw = rudder_speed * sin(rudder_angle);
-            double yaw_rate = rudder_coefficient * rudder_speed_yaw / rudder_distance;
-
-            state.heading += yaw_rate * d_time;
-            state.heading = fmod(state.heading, M_PI * 2);
-            if (state.heading < 0)
-                state.heading += M_PI * 2;
-
-            double drag = pow(state.speed, 3) * drag_coefficient;
-            state.speed += ((thrust_fwd - drag) / mass) * d_time;
-            double delta = state.speed * d_time;
-
-            state.x += delta * sin(state.heading) + estimatedCurrent.first * d_time;
-            state.y += delta * cos(state.heading) + estimatedCurrent.second * d_time;
-
-            state.time += d_time;
-//            std::cerr << "Heading difference: " << yaw_rate*d_time << std::endl;
-//            std::cerr << state.toString() << std::endl;
+            predictedStates.push_back(estimate(state, rudder, throttle, dTime, estimatedCurrent));
         }
         return state;
     }
@@ -98,6 +66,48 @@ private:
     double max_force = max_power / max_speed;
     double prop_coefficient = max_force / (max_prop_speed * max_prop_speed - max_speed * max_speed);
     double drag_coefficient = max_force / (pow(max_speed, 3));
+
+    /**
+     * Generate the state achieved by applying the given rudder and throttle for the given duration to this state.
+     * @param rudder desired rudder
+     * @param throttle desired throttle
+     * @param t duration of controls
+     * @param estimatedCurrent estimate of the <x,y> effect of the current (in m/s)
+     * @return the resulting state
+     */
+    VehicleState estimate(VehicleState& state, double rudder, double throttle, double d_time, std::pair<double, double> estimatedCurrent) const {
+        double target_rpm = idle_rpm + throttle * (max_rpm - idle_rpm);
+        double rcr = (target_rpm - state.rpm) / d_time;
+
+        if (rcr > max_rpm_change_rate) rcr = max_rpm_change_rate;
+        else if (rcr < -max_rpm_change_rate) rcr = -max_rpm_change_rate;
+
+        state.rpm += rcr * d_time;
+
+        double prop_rpm = prop_ratio * state.rpm;
+        double prop_speed = prop_rpm / prop_pitch;
+        double rudder_speed = fmax(sqrt(prop_speed), state.speed);
+        double thrust = prop_coefficient * (prop_speed * prop_speed - state.speed * state.speed);
+        double rudder_angle = rudder * max_rudder_angle;
+        double thrust_fwd = thrust * cos(rudder_angle);
+        double rudder_speed_yaw = rudder_speed * sin(rudder_angle);
+        double yaw_rate = rudder_coefficient * rudder_speed_yaw / rudder_distance;
+
+        state.heading += yaw_rate * d_time;
+        state.heading = fmod(state.heading, M_PI * 2);
+        if (state.heading < 0)
+            state.heading += M_PI * 2;
+
+        double drag = pow(state.speed, 3) * drag_coefficient;
+        state.speed += ((thrust_fwd - drag) / mass) * d_time;
+        double delta = state.speed * d_time;
+
+        state.x += delta * sin(state.heading) + estimatedCurrent.first * d_time;
+        state.y += delta * cos(state.heading) + estimatedCurrent.second * d_time;
+
+        state.time += d_time;
+        return state;
+    }
 };
 
 #endif //SRC_VEHICLESTATE_H

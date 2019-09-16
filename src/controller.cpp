@@ -94,7 +94,7 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
                 cerr << "Time difference between the following states is below zero:\n";
                 cerr << referenceTrajectoryCopy[i].toString() << '\n' << futureStates.back().toString() << endl;
             }
-            auto newState = futureStates.back().estimate(c->getRudder(), c->getThrottle(), timeDiff, m_CurrentEstimator.getCurrent());
+            auto newState = futureStates.back().simulate(c->getRudder(), c->getThrottle(), timeDiff, m_CurrentEstimator.getCurrent());
             double s = referenceTrajectoryCopy[i].getDistanceScore(newState) * getMPCWeight(i) + scores.back();
 //            if (c->getRudder() == 0 && c->getThrottle() == 1) cerr << "Score: " << s / n << endl;
 //            cerr << "Trying ";
@@ -251,7 +251,7 @@ State Controller::estimateStateInFuture(double desiredTime) {
     m_FutureStuffMutex.unlock();
 //    cerr << "Picked state " << s.toString() << " to estimate from" << endl;
     // return an estimate at the desired time based on the controls
-    auto ret = s.estimate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrent());
+    auto ret = s.simulate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrent());
 //    cerr << "Estimated state " << ret.toString() << "\n Which is " << s.distanceTo(ret) << " meters away from that one" << endl;
     return ret;
 }

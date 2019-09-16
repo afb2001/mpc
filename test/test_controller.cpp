@@ -63,10 +63,10 @@ TEST(ControllerUnitTests, realStateTest1)
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
-    reference.push_back(start.estimate(0.8, 0.75, 5, pair<double,double>(0,0)));
+    reference.push_back(start.simulate(0.8, 0.75, 5, pair<double,double>(0,0)));
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
-    EXPECT_LT(fabs(r - 0.8), 0.001);
-    EXPECT_LT(fabs(t - 0.75), 0.001);
+    EXPECT_NEAR(r,0.8, 0.001);
+    EXPECT_NEAR(t, 0.75, 0.001);
 }
 
 TEST(ControllerUnitTests, trajectoryDepthTest1)
@@ -75,14 +75,14 @@ TEST(ControllerUnitTests, trajectoryDepthTest1)
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
-    auto vs = start.estimate(0, 1, 0.499, pair<double,double>(0,0));
+    auto vs = start.simulate(0, 1, 0.499, pair<double,double>(0,0));
     vs.time -= 0.2;
     reference.push_back(vs);
     vs.time += 0.2;
     reference.push_back(vs);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
-    EXPECT_LT(fabs(r), 0.001);
-    EXPECT_LT(fabs(t - 1), 0.001);
+    EXPECT_NEAR(r, 0, 0.001);
+    EXPECT_NEAR(t,  1, 0.001);
 }
 
 TEST(ControllerUnitTests, turnAroundTest1)
@@ -107,9 +107,9 @@ TEST(ControllerUnitTests, futureEstimateTest1)
     VehicleState start(State(0,0,0,0,4));
     vector<State> reference;
     double r, t;
-    auto s1 = start.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
-    auto s2 = s1.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
-    auto s3 = s2.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s2 = s1.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s3 = s2.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
     reference.push_back(s1);
     reference.push_back(s2);
     reference.push_back(s3);
@@ -126,9 +126,9 @@ TEST(ControllerUnitTests, futureEstimateTest2)
     VehicleState start(State(0,0,0,0,4));
     vector<State> reference;
     double r, t;
-    auto s1 = start.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
-    auto s2 = s1.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
-    auto s3 = s2.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s2 = s1.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s3 = s2.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
     reference.push_back(s1);
     reference.push_back(s2);
     reference.push_back(s3);
@@ -136,7 +136,7 @@ TEST(ControllerUnitTests, futureEstimateTest2)
     EXPECT_DOUBLE_EQ(r, 0.8);
     EXPECT_DOUBLE_EQ(t, 1);
     auto r1 = controller.estimateStateInFuture(5);
-    auto r2 = s1.estimate(0.8, 1, 0.25, pair<double,double>(0,0));
+    auto r2 = s1.simulate(0.8, 1, 0.25, pair<double,double>(0,0));
     EXPECT_NEAR(r1.time, r2.time, 1e-5);
     EXPECT_NEAR(r1.x, r2.x, 1e-5);
     EXPECT_NEAR(r1.y, r2.y, 1e-5);
@@ -161,8 +161,8 @@ TEST(CurrentEstimatorTests, currentEstimatorTest1)
 TEST(VehicleStateTests, estimateTest0)
 {
     VehicleState s1(State(0,0,2,2.3,7));
-    auto s2 = s1.estimate(0, 1, 3, pair<double,double>(0,0));
-    auto s3 = s1.estimate(0, 1, 3, pair<double,double>(0,0));
+    auto s2 = s1.simulate(0, 1, 3, pair<double,double>(0,0));
+    auto s3 = s1.simulate(0, 1, 3, pair<double,double>(0,0));
     EXPECT_DOUBLE_EQ(s2.time, s3.time);
     EXPECT_DOUBLE_EQ(s2.x, s3.x);
     EXPECT_DOUBLE_EQ(s2.y, s3.y);
@@ -173,9 +173,9 @@ TEST(VehicleStateTests, estimateTest0)
 TEST(VehicleStateTests, estimateTest1)
 {
     VehicleState s1(State(0,0,2,2.3,7));
-    auto sFinal = s1.estimate(0, 1, 5, pair<double,double>(0,0));
-    auto s2 = s1.estimate(0, 1, 2, pair<double,double>(0,0));
-    auto s3 = s2.estimate(0, 1, 3, pair<double,double>(0,0));
+    auto sFinal = s1.simulate(0, 1, 5, pair<double,double>(0,0));
+    auto s2 = s1.simulate(0, 1, 2, pair<double,double>(0,0));
+    auto s3 = s2.simulate(0, 1, 3, pair<double,double>(0,0));
     EXPECT_DOUBLE_EQ(sFinal.time, s3.time);
     EXPECT_DOUBLE_EQ(sFinal.x, s3.x);
     EXPECT_DOUBLE_EQ(sFinal.y, s3.y);
@@ -187,14 +187,22 @@ TEST(VehicleStateTests, estimateTest2)
 {
     // This test fails. I guess the model is that bad // Update: the test passes now because I added a tolerance (0.001)
     VehicleState start(State(0,0,0,0,4));
-    auto s1 = start.estimate(0.8, 1, 0.75, pair<double,double>(0,0));
-    auto s2 = s1.estimate(0.8, 1, 0.25, pair<double,double>(0,0));
-    auto s3 = start.estimate(0.8, 1, 1, pair<double,double>(0,0));
+    auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
+    auto s2 = s1.simulate(0.8, 1, 0.25, pair<double,double>(0,0));
+    auto s3 = start.simulate(0.8, 1, 1, pair<double,double>(0,0));
     EXPECT_NEAR(s2.time, s3.time, 1e-3);
     EXPECT_NEAR(s2.x, s3.x, 1e-3);
     EXPECT_NEAR(s2.y, s3.y, 1e-3);
     EXPECT_NEAR(s2.heading, s3.heading, 1e-3);
     EXPECT_NEAR(s2.speed, s3.speed, 1e-3);
+}
+
+TEST(VehicleStateTests, simulatedCountTest) {
+    VehicleState start(State(0,0,0,0,4));
+    vector<VehicleState> simulated;
+    auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0), simulated);
+    EXPECT_GT(simulated.size(), 0);
+    EXPECT_EQ(simulated.size(), 9);
 }
 
 int main(int argc, char **argv){
