@@ -1,33 +1,23 @@
 #include "ros/ros.h"
-#include "geographic_msgs/GeoPointStamped.h"
-#include "geographic_msgs/GeoPath.h"
 #include "geometry_msgs/TwistStamped.h"
 #include "std_msgs/Bool.h"
 #include "std_msgs/String.h"
-#include "std_msgs/Float32.h"
-#include "std_msgs/Float64.h"
 #include "marine_msgs/Helm.h"
 #include "marine_msgs/NavEulerStamped.h"
 #include <vector>
 #include "project11/gz4d_geo.h"
-#include "path_follower/path_followerAction.h"
 #include "actionlib/server/simple_action_server.h"
 #include "path_planner/Trajectory.h"
 #include "mpc/EstimateState.h"
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <fstream>
-#include <project11_transformations/LatLongToMap.h>
-#include <thread>
-#include <signal.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <path_planner/TrajectoryDisplayer.h>
-#include "geographic_visualization_msgs/GeoVizItem.h"
-#include "geographic_visualization_msgs/GeoVizPointList.h"
-
 #include "controller.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-pragmas"
+#pragma ide diagnostic ignored "OCInconsistentNamingInspection"
+#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
 /**
  * ROS node which manages a model-predictive controller.
@@ -92,6 +82,7 @@ public:
         for (const auto &s : inmsg->states) {
             states.push_back(getState(s));
         }
+        m_TrajectoryNumber = inmsg->trajectoryNumber;
         m_Controller->receiveRequest(states);
     }
 
@@ -156,12 +147,13 @@ public:
 //        cerr << "Received service call " << endl;
         auto s = m_Controller->estimateStateInFuture(req.desiredTime);
         res.state = getStateMsg(s);
+        res.trajectoryNumber = m_TrajectoryNumber;
         return s.time != -1;
     }
 
 private:
-    double m_current_speed;
-    double m_current_heading;
+    double m_current_speed = 0; // marginally better than having it initialized with junk
+    double m_current_heading = 0;
 
     ros::Publisher m_helm_pub;
 
@@ -172,6 +164,8 @@ private:
     ros::Subscriber m_speed_sub;
 
     ros::ServiceServer m_estimate_state_service;
+
+    long m_TrajectoryNumber = 0;
 
     Controller* m_Controller;
 };
@@ -185,3 +179,5 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+#pragma clang diagnostic pop

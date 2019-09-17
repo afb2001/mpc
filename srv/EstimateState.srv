@@ -1,3 +1,4 @@
 float64 desiredTime
 ---
 path_planner/StateMsg state
+int64 trajectoryNumber
