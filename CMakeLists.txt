@@ -51,7 +51,7 @@ target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
  )
 
-catkin_add_gtest(test_controller test/test_controller.cpp src/controller.cpp)
+catkin_add_gtest(test_controller test/test_controller.cpp src/controller.cpp test/NodeStub.cpp)
 
 ## Mark executables and/or libraries for installation
 #install(TARGETS ${PROJECT_NAME}_node

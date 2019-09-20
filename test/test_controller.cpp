@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 //#include "controller.h"
 #include "../src/controller.h"
+#include "NodeStub.h"
 using std::vector;
 using std::pair;
 using std::cerr;
@@ -8,7 +9,8 @@ using std::endl;
 
 TEST(ControllerUnitTests, goNowhere)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     State start(0,0,0,0,6);
     vector<State> reference;
     reference.emplace_back(0,0,0,0,7);
@@ -20,7 +22,8 @@ TEST(ControllerUnitTests, goNowhere)
 
 TEST(ControllerUnitTests, goNorth)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -33,7 +36,8 @@ TEST(ControllerUnitTests, goNorth)
 
 TEST(ControllerUnitTests, goEast)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -46,7 +50,8 @@ TEST(ControllerUnitTests, goEast)
 
 TEST(ControllerUnitTests, goWest)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -59,7 +64,8 @@ TEST(ControllerUnitTests, goWest)
 
 TEST(ControllerUnitTests, realStateTest1)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
@@ -71,7 +77,8 @@ TEST(ControllerUnitTests, realStateTest1)
 
 TEST(ControllerUnitTests, trajectoryDepthTest1)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
@@ -87,7 +94,8 @@ TEST(ControllerUnitTests, trajectoryDepthTest1)
 
 TEST(ControllerUnitTests, turnAroundTest1)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     VehicleState start(State(0,0,0,1,7.5));
     vector<State> reference;
     double r, t;
@@ -103,7 +111,8 @@ TEST(ControllerUnitTests, turnAroundTest1)
 
 TEST(ControllerUnitTests, futureEstimateTest1)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     VehicleState start(State(0,0,0,0,4));
     vector<State> reference;
     double r, t;
@@ -122,7 +131,8 @@ TEST(ControllerUnitTests, futureEstimateTest1)
 
 TEST(ControllerUnitTests, futureEstimateTest2)
 {
-    Controller controller(nullptr);
+    NodeStub stub;
+    Controller controller(&stub);
     VehicleState start(State(0,0,0,0,4));
     vector<State> reference;
     double r, t;
@@ -132,7 +142,7 @@ TEST(ControllerUnitTests, futureEstimateTest2)
     reference.push_back(s1);
     reference.push_back(s2);
     reference.push_back(s3);
-    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 10000000000000000.25);
     EXPECT_DOUBLE_EQ(r, 0.8);
     EXPECT_DOUBLE_EQ(t, 1);
     auto r1 = controller.estimateStateInFuture(5);
@@ -196,6 +206,12 @@ TEST(VehicleStateTests, estimateTest2)
     EXPECT_NEAR(s2.heading, s3.heading, 1e-3);
     EXPECT_NEAR(s2.speed, s3.speed, 1e-3);
 }
+
+//TEST(VehicleStateTests, specificEstimateTest1) {
+//    // this is a problem scenario I encountered
+//    VehicleState start(State(39.268158, 19.623879, 299.952653, 2.014845, 1569002851.578698));
+//
+//}
 
 TEST(VehicleStateTests, simulatedCountTest) {
     VehicleState start(State(0,0,0,0,4));

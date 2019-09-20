@@ -82,8 +82,8 @@ public:
         for (const auto &s : inmsg->states) {
             states.push_back(getState(s));
         }
-        m_TrajectoryNumber = inmsg->trajectoryNumber;
-        m_Controller->receiveRequest(states);
+//        m_TrajectoryNumber = inmsg->trajectoryNumber;
+        m_Controller->receiveRequest(states, inmsg->trajectoryNumber);
     }
 
     /**
@@ -115,7 +115,7 @@ public:
                 inmsg->pose.position.y,
                 m_current_heading,
                 m_current_speed,
-                ros::Time::now().toNSec() / 1.0e9));
+                getTime()));
     }
 
     /**
@@ -145,10 +145,13 @@ public:
      */
     bool estimateStateInFuture(mpc::EstimateState::Request &req, mpc::EstimateState::Response &res) {
 //        cerr << "Received service call " << endl;
-        auto s = m_Controller->estimateStateInFuture(req.desiredTime);
+        auto s = m_Controller->estimateStateInFuture(req.desiredTime, res.trajectoryNumber);
         res.state = getStateMsg(s);
-        res.trajectoryNumber = m_TrajectoryNumber;
         return s.time != -1;
+    }
+
+    double getTime() const override {
+        return TrajectoryDisplayer::getTime();
     }
 
 private:
@@ -165,7 +168,7 @@ private:
 
     ros::ServiceServer m_estimate_state_service;
 
-    long m_TrajectoryNumber = 0;
+//    long m_TrajectoryNumber = 0;
 
     Controller* m_Controller;
 };

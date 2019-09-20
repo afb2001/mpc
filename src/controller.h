@@ -40,7 +40,7 @@ public:
      * Update the reference trajectory.
      * @param trajectory new reference trajectory
      */
-    void receiveRequest(const std::vector<State>& trajectory);
+    void receiveRequest(const std::vector<State>& trajectory, long trajectoryNumber);
 
     /**
      * Update the controller's idea of the current state of the vehicle.
@@ -89,7 +89,7 @@ public:
      * @param referenceTrajectoryCopy reference trajectory
      * @param endTime end time
      */
-    void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime);
+    void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
 
     /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
@@ -103,6 +103,7 @@ public:
      * @return an estimate of the state we'll be in at desiredTime
      */
     State estimateStateInFuture(double desiredTime);
+    State estimateStateInFuture(double desiredTime, long& trajectoryNumber);
 
 private:
 
@@ -142,6 +143,10 @@ private:
     std::vector<VehicleState> m_PredictedTrajectory;
 
     CurrentEstimator m_CurrentEstimator;
+
+    long m_TrajectoryNumber = 0;
+    long m_NextTrajectoryNumber = 0;
+    std::mutex m_TrajectoryNumberMutex;
 
     /**
      * Get the score weight for a state along the reference trajectory at the given index
