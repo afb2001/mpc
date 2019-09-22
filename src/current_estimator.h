@@ -51,7 +51,8 @@ public:
      * @return a pair of doubles representing the m/s of displacement in <x, y>
      */
     std::pair<double, double> getCurrent() {
-        return estimatedCurrent;
+        return std::make_pair(0.0, 0.0);
+//        return estimatedCurrent;
     }
 
     /**

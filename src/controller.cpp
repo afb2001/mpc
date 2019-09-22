@@ -43,6 +43,7 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
 
 //    cerr << "Starting MPC from " << startCopy.toString() << " with reference trajectory of length " << referenceTrajectoryCopy.size() << endl;
 
+    r = 0; t = 0;
     vector<Control> controls;
     vector<VehicleState> futureStates;
     vector<pair<double,double>> futureControls;
@@ -134,12 +135,16 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
                     // store all this iteration's future states in future (skip the start state)
 //                    for (unsigned long k = 0; k < futureStates.size(); k++) future.push_back(futureStates[k]);
                     futureControls.clear();
-                    simulatedStates.push_back(simulated); // didn't do it before, less code to do it here than manually add
+//                    simulatedStates.push_back(simulated); // didn't do it before, less code to do it here than manually add
                     for (unsigned long k = 0; k < simulatedStates.size(); k++) {
                         for (const auto& state : simulatedStates[k]) {
                             future.push_back(state);
-                            futureControls.emplace_back(controls[k].getRudder(), controls[k].getThrottle());
+                            futureControls.emplace_back(c->getRudder(), c->getThrottle());
                         }
+                    }
+                    for (const auto& state : simulated) {
+                        future.push_back(state);
+                        futureControls.emplace_back(controls.back().getRudder(), controls.back().getThrottle());
                     }
                     // the most recent state wasn't in futureStates, so push it too
 //                    future.push_back(newState);
@@ -179,7 +184,7 @@ void Controller::sendAction()
             mtx.lock();
             State startCopy(m_CurrentLocation);
             vector<State> referenceTrajectoryCopy;
-            for (const auto& s : m_ReferenceTrajectory) if (s.time > m_ControlReceiver->getTime()) referenceTrajectoryCopy.push_back(s);
+            for (const auto& s : m_ReferenceTrajectory) if (s.time > m_ControlReceiver->getTime() + 1) referenceTrajectoryCopy.push_back(s);
             auto trajectoryNumber = m_NextTrajectoryNumber;
             mtx.unlock();
             // actually do MPC
@@ -227,7 +232,7 @@ void Controller::stopSendingControls()
 
 double Controller::getMPCWeight(int index) {
 //    return 1;
-    return MAX_LOOKAHEAD_STEPS - index;
+    return MAX_LOOKAHEAD_STEPS + index;
 }
 
 State Controller::estimateStateInFuture(double desiredTime, long& trajectoryNumber) {

@@ -142,7 +142,7 @@ TEST(ControllerUnitTests, futureEstimateTest2)
     reference.push_back(s1);
     reference.push_back(s2);
     reference.push_back(s3);
-    controller.mpc(r, t, start, reference, Controller::getTime() + 10000000000000000.25);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_DOUBLE_EQ(r, 0.8);
     EXPECT_DOUBLE_EQ(t, 1);
     auto r1 = controller.estimateStateInFuture(5);
