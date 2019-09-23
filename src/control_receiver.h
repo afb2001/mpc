@@ -17,6 +17,12 @@ public:
      */
     virtual void receiveControl(double rudder, double throttle) = 0;
     virtual void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) = 0;
+
+    /**
+     * Get the current time.
+     * @return the current time in seconds
+     */
+    virtual double getTime() const = 0;
 };
 
 

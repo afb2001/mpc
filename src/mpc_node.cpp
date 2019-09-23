@@ -1,5 +1,6 @@
 #include "ros/ros.h"
 #include "geometry_msgs/TwistStamped.h"
+#include "std_msgs/Bool.h"
 #include "std_msgs/String.h"
 #include "marine_msgs/Helm.h"
 #include "marine_msgs/NavEulerStamped.h"
@@ -7,9 +8,16 @@
 #include "project11/gz4d_geo.h"
 #include "actionlib/server/simple_action_server.h"
 #include "path_planner/Trajectory.h"
+#include "mpc/EstimateState.h"
 #include <fstream>
+#include <geometry_msgs/PoseStamped.h>
 #include <path_planner/TrajectoryDisplayer.h>
 #include "controller.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-pragmas"
+#pragma ide diagnostic ignored "OCInconsistentNamingInspection"
+#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
 /**
  * ROS node which manages a model-predictive controller.
@@ -27,11 +35,11 @@ public:
 
         m_controller_msgs_sub = m_node_handle.subscribe("/controller_msgs", 10, &MPCNode::controllerMsgsCallback, this);
         m_reference_trajectory_sub = m_node_handle.subscribe("/reference_trajectory", 1, &MPCNode::referenceTrajectoryCallback, this);
-//        m_position_sub = m_node_handle.subscribe("/position_map", 10, &MPCNode::positionCallback, this);
+        m_position_sub = m_node_handle.subscribe("/position_map", 10, &MPCNode::positionCallback, this);
         m_heading_sub = m_node_handle.subscribe("/heading", 10, &MPCNode::headingCallback, this);
         m_speed_sub = m_node_handle.subscribe("/sog", 10, &MPCNode::speedCallback, this);
 
-//        m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
+        m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
 
         m_Controller = new Controller(this);
     }
@@ -70,11 +78,12 @@ public:
      */
     void referenceTrajectoryCallback(const path_planner::Trajectory::ConstPtr &inmsg)
     {
-//        std::vector<State> states;
-//        for (const auto &s : inmsg->states) {
-//            states.push_back(getState(s));
-//        }
-        m_Controller->receiveRequest(inmsg);
+        std::vector<State> states;
+        for (const auto &s : inmsg->states) {
+            states.push_back(getState(s));
+        }
+//        m_TrajectoryNumber = inmsg->trajectoryNumber;
+        m_Controller->receiveRequest(states, inmsg->trajectoryNumber);
     }
 
     /**
@@ -99,15 +108,15 @@ public:
      * Update the controller's idea of the vehicle's position.
      * @param inmsg a message containing the new position
      */
-//    void positionCallback(const geometry_msgs::PoseStamped::ConstPtr &inmsg)
-//    {
-//        m_Controller->updatePosition(State(
-//                inmsg->pose.position.x,
-//                inmsg->pose.position.y,
-//                m_current_heading,
-//                m_current_speed,
-//                ros::Time::now().toNSec() / 1.0e9));
-//    }
+    void positionCallback(const geometry_msgs::PoseStamped::ConstPtr &inmsg)
+    {
+        m_Controller->updatePosition(State(
+                inmsg->pose.position.x,
+                inmsg->pose.position.y,
+                m_current_heading,
+                m_current_speed,
+                getTime()));
+    }
 
     /**
      * Publish a rudder and throttle to /helm.
@@ -134,16 +143,20 @@ public:
      * @param res the response (containing a State)
      * @return whether the service call succeeded
      */
-//    bool estimateStateInFuture(mpc::EstimateState::Request &req, mpc::EstimateState::Response &res) {
+    bool estimateStateInFuture(mpc::EstimateState::Request &req, mpc::EstimateState::Response &res) {
 //        cerr << "Received service call " << endl;
-//        auto s = m_Controller->estimateStateInFuture(req.desiredTime);
-//        res.state = getStateMsg(s);
-//        return s.time != -1;
-//    }
+        auto s = m_Controller->estimateStateInFuture(req.desiredTime, res.trajectoryNumber);
+        res.state = getStateMsg(s);
+        return s.time != -1;
+    }
+
+    double getTime() const override {
+        return TrajectoryDisplayer::getTime();
+    }
 
 private:
-    double m_current_speed;
-    double m_current_heading;
+    double m_current_speed = 0; // marginally better than having it initialized with junk
+    double m_current_heading = 0;
 
     ros::Publisher m_helm_pub;
 
@@ -154,6 +167,8 @@ private:
     ros::Subscriber m_speed_sub;
 
     ros::ServiceServer m_estimate_state_service;
+
+//    long m_TrajectoryNumber = 0;
 
     Controller* m_Controller;
 };
@@ -167,3 +182,5 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+#pragma clang diagnostic pop
