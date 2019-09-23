@@ -92,6 +92,17 @@ public:
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
 
     /**
+     * MPC but only one control out to the end of the trajectory.
+     * Assumes reference trajectory is appropriately spaced. Interpolate reference trajectory beforehand if desired.
+     * @param r resulting rudder
+     * @param t resulting throttle
+     * @param startCopy starting point
+     * @param referenceTrajectoryCopy reference trajectory
+     * @param endTime end time
+     */
+    void straightMpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
+
+    /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
      * @return the current time in seconds
      */
