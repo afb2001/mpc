@@ -201,7 +201,7 @@ void Controller::sendAction()
         } else {
             this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        cerr << "Current: " <<  m_CurrentEstimator.getCurrent().first << ", " << m_CurrentEstimator.getCurrent().second << endl;
+//        cerr << "Current: " <<  m_CurrentEstimator.getCurrent().first << ", " << m_CurrentEstimator.getCurrent().second << endl;
 
     }
     cerr << "Ending thread for MPC" << endl;
