@@ -201,6 +201,8 @@ void Controller::sendAction()
         } else {
             this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+        cerr << "Current: " <<  m_CurrentEstimator.getCurrent().first << ", " << m_CurrentEstimator.getCurrent().second << endl;
+
     }
     cerr << "Ending thread for MPC" << endl;
 }
@@ -242,6 +244,7 @@ State Controller::estimateStateInFuture(double desiredTime, long& trajectoryNumb
 //    cerr << "Current location is " << m_CurrentLocation.toString() << endl;
 //    cerr << m_FutureControls.size() << endl;
     VehicleState s = State(-1);
+    VehicleState prev = State(-1);
     double r, t;
     m_FutureStuffMutex.lock();
     trajectoryNumber = m_TrajectoryNumber;
@@ -268,6 +271,7 @@ State Controller::estimateStateInFuture(double desiredTime, long& trajectoryNumb
                 return s;
             }
         }
+        prev = s;
     }
     // if we didn't assign in that loop it was the last one
     if (s.time == -1 && !m_PredictedTrajectory.empty()) {
@@ -279,7 +283,21 @@ State Controller::estimateStateInFuture(double desiredTime, long& trajectoryNumb
     m_FutureStuffMutex.unlock();
 //    cerr << "Picked state " << s.toString() << " to estimate from" << endl;
     // return an estimate at the desired time based on the controls
-    auto ret = s.simulate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrent());
+    vector<VehicleState> simulated;
+    auto ret = s.simulate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrent(), simulated);
+//    // set the heading to ignore current (what we in the business call a *hack*)
+//    auto last = simulated.back();
+//    last.setHeadingTowards(ret);
+//    prev.setHeadingTowards(ret);
+//    cerr << "Changing ret.heading from " << ret.heading << " to " << prev.heading << endl;
+//    ret.heading = prev.heading;
+//    cerr << ret.heading;
+
+    // finding net heading (accounting for current) // WRONG
+    // but current estimator is also wrong so need to fix that
+    auto dx = ret.speed * cos(ret.yaw()) + m_CurrentEstimator.getCurrent().first;
+    auto dy = ret.speed * sin(ret.yaw()) + m_CurrentEstimator.getCurrent().second;
+    ret.heading = M_PI_2 - atan2(dy, dx);
 //    cerr << "Estimated state " << ret.toString() << "\n Which is " << s.distanceTo(ret) << " meters away from that one" << endl;
 //    cerr << "with controls r = " << r << ", t = " << t << " and current " <<
 //        m_CurrentEstimator.getCurrent().first << ", " << m_CurrentEstimator.getCurrent().second << endl;
@@ -329,7 +347,7 @@ void Controller::straightMpc(double& r, double& t, State startCopy, std::vector<
                 for (int i = 0; i < referenceTrajectoryCopy.size(); i++) {
                     const auto& reference = referenceTrajectoryCopy[i];
                     currentState = currentState.simulate(rudder, throttle, reference.time - currentState.time, m_CurrentEstimator.getCurrent(), simulated);
-                    score += reference.getDistanceScore(currentState) * i;
+                    score += reference.getDistanceScore(currentState) * (i + 1);
                 }
                 if (score < minScore) {
                     minScore = score;

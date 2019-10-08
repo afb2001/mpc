@@ -69,6 +69,7 @@ public:
             m_Controller->terminate();
         } else if (message == "stop sending controls") {
             m_Controller->stopSendingControls();
+            TrajectoryDisplayer::displayTrajectory(std::vector<State>(), false);
         }
     }
 

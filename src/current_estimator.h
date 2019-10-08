@@ -20,13 +20,10 @@ public:
      * @param predictedTrajectory the old predicted trajectory
      */
     void updateEstimate(const State &currentState, const std::vector<VehicleState>& predictedTrajectory) {
-        if (previousTime != 0 && previousTime != currentState.time && !predictedTrajectory.empty()) {
-            int index = 0;
-            for (int i = 1; i < predictedTrajectory.size(); i++) {
-                if (currentState.time <= predictedTrajectory[i].time) {
-                    index = (fabs(predictedTrajectory[i].time - currentState.time) <
-                            fabs(predictedTrajectory[i - 1].time - currentState.time)) ?
-                                    i : i - 1;
+        if (previousTime != 0 && previousTime != currentState.time && predictedTrajectory.size() > 1) {
+            int index = 1;
+            for (; index < predictedTrajectory.size(); index++) {
+                if (currentState.time < predictedTrajectory[index].time) {
                     break;
                 }
             }
@@ -34,9 +31,9 @@ public:
             auto old = estimatedCurrentVector[currentEstimateIteration];
             estimatedCurrent.first -= old.first / estimatedCurrentVector.size();
             estimatedCurrent.second -= old.second / estimatedCurrentVector.size();
-            double dtime = predictedTrajectory[index].time - (predictedTrajectory[0].time - (currentState.time - previousTime));
-            old.first += (currentState.x - predictedTrajectory[index].x) / dtime;
-            old.second += (currentState.y - predictedTrajectory[index].y) / dtime;
+            auto interpolated = predictedTrajectory[index - 1].interpolate(predictedTrajectory[index], currentState.time);
+            old.first += (currentState.x -interpolated.x);
+            old.second += (currentState.y - interpolated.y);
             estimatedCurrent.first += old.first / estimatedCurrentVector.size();
             estimatedCurrent.second += old.second / estimatedCurrentVector.size();
             estimatedCurrentVector[currentEstimateIteration] = old;
@@ -58,12 +55,12 @@ public:
     /**
      * Reset the estimate of the current to <0, 0> m/s.
      */
-    void resetCurrentEstimate() { estimatedCurrentVector = std::vector<std::pair<double,double>>(50); }
+    void resetCurrentEstimate() { estimatedCurrentVector = std::vector<std::pair<double,double>>(5); }
 
 private:
     std::pair<double, double> estimatedCurrent;
     std::vector<std::pair<double, double>> estimatedCurrentVector;
-    int currentEstimateIteration = 0;
+    unsigned long currentEstimateIteration = 0;
     double previousTime = 0;
 };
 

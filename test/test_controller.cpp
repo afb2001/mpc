@@ -7,6 +7,18 @@ using std::pair;
 using std::cerr;
 using std::endl;
 
+TEST(UnitTests, headingTowardsTest) {
+    State s1(3, 3, 0, 0, 0);
+    State s2(3, 5, 0, 0, 0);
+    State s3(5, 3, 0, 0, 0);
+    State s4(5, 5, 0, 0, 0);
+    State s5(3, 0, 0, 0, 0);
+    EXPECT_DOUBLE_EQ(s1.headingTo(s2), 0);
+    EXPECT_DOUBLE_EQ(s1.headingTo(s3), M_PI / 2);
+    EXPECT_DOUBLE_EQ(s1.headingTo(s4), M_PI / 4);
+    EXPECT_DOUBLE_EQ(s1.headingTo(s5), M_PI);
+}
+
 TEST(ControllerUnitTests, goNowhere)
 {
     NodeStub stub;
@@ -216,7 +228,7 @@ TEST(ControllerUnitTests, futureEstimateTest1)
 {
     NodeStub stub;
     Controller controller(&stub);
-    VehicleState start(State(0,0,0,0,4));
+    VehicleState start(State(0,0,0,1.5,4));
     vector<State> reference;
     double r, t;
     auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
