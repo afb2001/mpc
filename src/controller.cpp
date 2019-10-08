@@ -347,7 +347,7 @@ void Controller::straightMpc(double& r, double& t, State startCopy, std::vector<
                 for (int i = 0; i < referenceTrajectoryCopy.size(); i++) {
                     const auto& reference = referenceTrajectoryCopy[i];
                     currentState = currentState.simulate(rudder, throttle, reference.time - currentState.time, m_CurrentEstimator.getCurrent(), simulated);
-                    score += reference.getDistanceScore(currentState) * (i + 1);
+                    score += reference.getDistanceScore(currentState) * (1.0 / (i + 1));
                 }
                 if (score < minScore) {
                     minScore = score;
