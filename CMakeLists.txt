@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
     genmsg
     path_planner
     actionlib_msgs
+    dynamic_reconfigure
 )
 
 add_service_files(
@@ -26,6 +27,10 @@ generate_messages(
         DEPENDENCIES
         std_msgs
         path_planner
+)
+
+generate_dynamic_reconfigure_options(
+        cfg/mpc.cfg
 )
 
 catkin_package(
@@ -44,6 +49,7 @@ add_executable(${PROJECT_NAME}_node
 
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}

@@ -13,6 +13,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <path_planner/TrajectoryDisplayer.h>
 #include "controller.h"
+#include <mpc/mpcConfig.h>
+#include <dynamic_reconfigure/server.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
@@ -42,6 +44,11 @@ public:
         m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
 
         m_Controller = new Controller(this);
+
+        dynamic_reconfigure::Server<mpc::mpcConfig>::CallbackType f;
+        f = boost::bind(&MPCNode::reconfigureCallback, this, _1, _2);
+
+        m_Dynamic_Reconfigure_Server.setCallback(f);
     }
 
     /**
@@ -119,6 +126,11 @@ public:
                 getTime()));
     }
 
+    void reconfigureCallback(mpc::mpcConfig &config, uint32_t level)
+    {
+
+    }
+
     /**
      * Publish a rudder and throttle to /helm.
      * @param rudder rudder command
@@ -172,6 +184,7 @@ private:
 //    long m_TrajectoryNumber = 0;
 
     Controller* m_Controller;
+    dynamic_reconfigure::Server<mpc::mpcConfig> m_Dynamic_Reconfigure_Server;
 };
 
 int main(int argc, char **argv)
