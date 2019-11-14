@@ -128,7 +128,10 @@ public:
 
     void reconfigureCallback(mpc::mpcConfig &config, uint32_t level)
     {
-
+        m_Controller->updateConfig(config.mpc_type,
+                config.weight_slope, config.weight_start,
+                config.rudders, config.throttles,
+                config.distance_weight, config.heading_weight, config.speed_weight);
     }
 
     /**
