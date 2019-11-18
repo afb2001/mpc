@@ -183,14 +183,25 @@ void Controller::sendAction()
             // TODO! -- support error cases, find out how to trigger e-stop
 
             // grab current starting position and reference trajectory
+            cerr << "Controller getting ready to copy trajectory" << endl;
             mtx.lock();
+            cerr << "Controller copying trajectory of length " << m_ReferenceTrajectory.size();
             State startCopy(m_CurrentLocation);
             vector<State> referenceTrajectoryCopy;
+            double lookahead = m_UseBranching? 30 : 6;
             for (const auto& s : m_ReferenceTrajectory)
-                if (s.time > m_ControlReceiver->getTime() + 1 && s.time < m_ControlReceiver->getTime() + 6)
+                if (s.time > m_ControlReceiver->getTime() + 1 && s.time < m_ControlReceiver->getTime() + lookahead)
                     referenceTrajectoryCopy.push_back(s);
+            cerr << "Resulting copied trajectory of length " << referenceTrajectoryCopy.size() << endl;
+            if (referenceTrajectoryCopy.empty()) {
+                cerr << "Reference trajectory empty; sleeping for a bit" << endl;
+                this_thread::sleep_for(std::chrono::milliseconds(100));
+                mtx.unlock();
+                continue;
+            }
             auto trajectoryNumber = m_NextTrajectoryNumber;
             mtx.unlock();
+            cerr << "Starting control iteration from " << startCopy.toString() << endl;
             // actually do MPC
             if (m_UseBranching) {
                 mpc(rudder, throttle, startCopy, referenceTrajectoryCopy, m_ControlReceiver->getTime() + 0.1, trajectoryNumber);

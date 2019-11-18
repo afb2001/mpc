@@ -86,10 +86,12 @@ public:
      */
     void referenceTrajectoryCallback(const path_planner::Trajectory::ConstPtr &inmsg)
     {
+        std::cerr << "Controller received reference trajectory of length: " << std::endl;
         std::vector<State> states;
         for (const auto &s : inmsg->states) {
             states.push_back(getState(s));
         }
+        std::cerr << states.size() << std::endl;
 //        m_TrajectoryNumber = inmsg->trajectoryNumber;
         m_Controller->receiveRequest(states, inmsg->trajectoryNumber);
     }
