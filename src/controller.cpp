@@ -51,7 +51,7 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
     vector<VehicleState> future;
     vector<double> scores;
     vector<vector<VehicleState>> simulatedStates;
-    int rudderGranularity = 5, throttleGranularity = 4; // 10 rudders, 4 throttles
+    int rudderGranularity = m_Rudders / 2, throttleGranularity = m_Throttles - 1; // 10 rudders, 4 throttles
     int iterations;
     auto minScore = DBL_MAX;
     for (iterations = 1;  m_ControlReceiver->getTime() < endTime; iterations++) {
