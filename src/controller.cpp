@@ -39,8 +39,8 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
 
     m_FutureStuffMutex.lock();
 //    m_CurrentEstimator.updateEstimate2(startCopy, m_PredictedTrajectory);
-//    m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
-    m_CurrentEstimator.update(startCopy);
+    m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
+//    m_CurrentEstimator.update(startCopy);
     m_FutureStuffMutex.unlock();
 
 //    cerr << "Starting MPC from " << startCopy.toString() << " with reference trajectory of length " << referenceTrajectoryCopy.size() << endl;
@@ -188,9 +188,9 @@ void Controller::sendAction()
             // TODO! -- support error cases, find out how to trigger e-stop
 
             // grab current starting position and reference trajectory
-//            cerr << "Controller getting ready to copy trajectory" << endl;
+            cerr << "Controller getting ready to copy trajectory" << endl;
             mtx.lock();
-//            cerr << "Controller copying trajectory of length " << m_ReferenceTrajectory.size() << endl;
+            cerr << "Controller copying trajectory of length " << m_ReferenceTrajectory.size() << endl;
             State startCopy(m_CurrentLocation);
             vector<State> referenceTrajectoryCopy;
             double lookahead = m_UseBranching? 30 : 6;
@@ -215,7 +215,7 @@ void Controller::sendAction()
                 straightMpc(rudder, throttle, startCopy, referenceTrajectoryCopy, m_ControlReceiver->getTime() + 0.1, trajectoryNumber);
             }
             // add control to current estimator
-            m_CurrentEstimator.addControl(rudder, throttle, getTime());
+//            m_CurrentEstimator.addControl(rudder, throttle, getTime());
 //            cerr << "Controller picked a trajectory of length " << m_PredictedTrajectory.size() << endl;
 //            cerr << "with initial rudder " << rudder << " and throttle " << throttle << endl;
             std::vector<State> trajectory;
@@ -251,11 +251,11 @@ void Controller::terminate()
 
 void Controller::startSendingControls()
 {
-//    m_CurrentEstimator.resetCurrentEstimate();
-    mtx.lock();
-    VehicleState startCopy(m_CurrentLocation);
-    mtx.unlock();
-    m_CurrentEstimator.initialize(startCopy);
+    m_CurrentEstimator.resetCurrentEstimate();
+//    mtx.lock();
+//    VehicleState startCopy(m_CurrentLocation);
+//    mtx.unlock();
+//    m_CurrentEstimator.initialize(startCopy);
     plan = true;
 }
 
@@ -367,8 +367,8 @@ void Controller::straightMpc(double& r, double& t, State startCopy, std::vector<
     // update current estimator // why here though?
     m_FutureStuffMutex.lock();
 //    m_CurrentEstimator.updateEstimate2(startCopy, m_PredictedTrajectory);
-//    m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
-    m_CurrentEstimator.update(startCopy);
+    m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
+//    m_CurrentEstimator.update(startCopy);
     m_FutureStuffMutex.unlock();
 
     // rudders on both sides of zero, and throttles count zero

@@ -48,7 +48,7 @@ public:
 
         // if the trajectory is empty still update the old time
         previousTime = currentState.time;
-        std::cerr << "Estimated current: " << estimatedCurrent.first << ", " << estimatedCurrent.second << std::endl;
+//        std::cerr << "Estimated current: " << estimatedCurrent.first << ", " << estimatedCurrent.second << std::endl;
     }
 
     /**

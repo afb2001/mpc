@@ -174,8 +174,8 @@ private:
     std::vector<std::pair<double,double>> m_FutureControls;
     std::vector<VehicleState> m_PredictedTrajectory;
 
-//    CurrentEstimator m_CurrentEstimator;
-    OtherCurrentEstimator m_CurrentEstimator;
+    CurrentEstimator m_CurrentEstimator;
+//    OtherCurrentEstimator m_CurrentEstimator;
 
     long m_TrajectoryNumber = 0;
     long m_NextTrajectoryNumber = 0;
