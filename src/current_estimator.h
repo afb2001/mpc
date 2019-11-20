@@ -29,19 +29,18 @@ public:
                     break;
                 }
             }
-            auto dTime = currentState.time - predictedTrajectory[0].time;
-            if (predictedTrajectory[index].time <= 0 || dTime == 0) return; // if the states are invalid don't estimate current
+            if (predictedTrajectory[index].time <= 0) return; // if the states are invalid don't estimate current
             auto old = estimatedCurrentVector[currentEstimateIteration];
             estimatedCurrent.first -= old.first / c_BufferSize;
             estimatedCurrent.second -= old.second / c_BufferSize;
             auto interpolated = predictedTrajectory[index - 1].interpolate(predictedTrajectory[index], currentState.time);
-            // careful, this used to be += and you changed it to just =
-            old.first = (currentState.x -interpolated.x) / dTime;
-            old.second = (currentState.y - interpolated.y) / dTime;
-            estimatedCurrent.first += old.first / c_BufferSize;
-            estimatedCurrent.second += old.second / c_BufferSize;
-            if (!(old.first == nan("") || old.second == nan("")))
+            old.first += (currentState.x -interpolated.x);
+            old.second += (currentState.y - interpolated.y);
+            if (!(old.first == nan("") || old.second == nan(""))) {
+                estimatedCurrent.first += old.first / c_BufferSize;
+                estimatedCurrent.second += old.second / c_BufferSize;
                 estimatedCurrentVector[currentEstimateIteration] = old;
+            }
             currentEstimateIteration = (currentEstimateIteration + 1) % c_BufferSize;
         }
         // hack to cap current
@@ -52,7 +51,6 @@ public:
 
         // if the trajectory is empty still update the old time
         previousTime = currentState.time;
-//        std::cerr << "Estimated current: " << estimatedCurrent.first << ", " << estimatedCurrent.second << std::endl;
     }
 
     /**
@@ -99,8 +97,8 @@ public:
      * @return a pair of doubles representing the m/s of displacement in <x, y>
      */
     std::pair<double, double> getCurrent() const {
-        return std::make_pair(0.0, 0.0);
-//        return estimatedCurrent;
+//        return std::make_pair(0.0, 0.0);
+        return estimatedCurrent;
     }
 
 
