@@ -13,6 +13,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <path_planner/TrajectoryDisplayer.h>
 #include "controller.h"
+#include <mpc/mpcConfig.h>
+#include <dynamic_reconfigure/server.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
@@ -42,6 +44,11 @@ public:
         m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
 
         m_Controller = new Controller(this);
+
+        dynamic_reconfigure::Server<mpc::mpcConfig>::CallbackType f;
+        f = boost::bind(&MPCNode::reconfigureCallback, this, _1, _2);
+
+        m_Dynamic_Reconfigure_Server.setCallback(f);
     }
 
     /**
@@ -79,10 +86,12 @@ public:
      */
     void referenceTrajectoryCallback(const path_planner::Trajectory::ConstPtr &inmsg)
     {
+        std::cerr << "Controller received reference trajectory of length: " << std::endl;
         std::vector<State> states;
         for (const auto &s : inmsg->states) {
             states.push_back(getState(s));
         }
+        std::cerr << states.size() << std::endl;
 //        m_TrajectoryNumber = inmsg->trajectoryNumber;
         m_Controller->receiveRequest(states, inmsg->trajectoryNumber);
     }
@@ -117,6 +126,14 @@ public:
                 m_current_heading,
                 m_current_speed,
                 getTime()));
+    }
+
+    void reconfigureCallback(mpc::mpcConfig &config, uint32_t level)
+    {
+        m_Controller->updateConfig(config.mpc_type,
+                config.weight_slope, config.weight_start,
+                config.rudders, config.throttles,
+                config.distance_weight, config.heading_weight, config.speed_weight);
     }
 
     /**
@@ -172,6 +189,7 @@ private:
 //    long m_TrajectoryNumber = 0;
 
     Controller* m_Controller;
+    dynamic_reconfigure::Server<mpc::mpcConfig> m_Dynamic_Reconfigure_Server;
 };
 
 int main(int argc, char **argv)

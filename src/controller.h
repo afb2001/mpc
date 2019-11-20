@@ -10,6 +10,7 @@
 #include "path_planner/State.h"
 #include "VehicleState.h"
 #include "current_estimator.h"
+#include "OtherCurrentEstimator.h"
 #include <mutex>
 #include <random>
 #include "path_planner/Trajectory.h"
@@ -116,6 +117,20 @@ public:
     State estimateStateInFuture(double desiredTime);
     State estimateStateInFuture(double desiredTime, long& trajectoryNumber);
 
+    /**
+     * Update the configuration of the controller.
+     * @param useBranching
+     * @param weightSlope
+     * @param weightStart
+     * @param rudders
+     * @param throttles
+     * @param distanceWeight
+     * @param headingWeight
+     * @param speedWeight
+     */
+    void updateConfig(int useBranching, double weightSlope, double weightStart, int rudders, int throttles,
+                      double distanceWeight, double headingWeight, double speedWeight);
+
 private:
 
     /**
@@ -143,6 +158,12 @@ private:
 
     ControlReceiver* m_ControlReceiver;
 
+    // configuration
+    bool m_UseBranching;
+    double m_WeightSlope, m_WeightStart;
+    int m_Rudders, m_Throttles;
+    double m_DistanceWeight, m_HeadingWeight, m_SpeedWeight;
+
     std::mutex mtx;
     bool running = false;
     bool plan = false;
@@ -154,6 +175,7 @@ private:
     std::vector<VehicleState> m_PredictedTrajectory;
 
     CurrentEstimator m_CurrentEstimator;
+//    OtherCurrentEstimator m_CurrentEstimator;
 
     long m_TrajectoryNumber = 0;
     long m_NextTrajectoryNumber = 0;
@@ -165,6 +187,9 @@ private:
      * @return a weight for the score
      */
     static double getMPCWeight(int index);
+    double getMPCWeight(double timeFromStart) const;
+
+    double compareStates(const State& s1, const VehicleState& s2) const;
 
     void sendAction();
 };

@@ -38,7 +38,9 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
         return;
 
     m_FutureStuffMutex.lock();
+//    m_CurrentEstimator.updateEstimate2(startCopy, m_PredictedTrajectory);
     m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
+//    m_CurrentEstimator.update(startCopy);
     m_FutureStuffMutex.unlock();
 
 //    cerr << "Starting MPC from " << startCopy.toString() << " with reference trajectory of length " << referenceTrajectoryCopy.size() << endl;
@@ -50,7 +52,7 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
     vector<VehicleState> future;
     vector<double> scores;
     vector<vector<VehicleState>> simulatedStates;
-    int rudderGranularity = 5, throttleGranularity = 4; // 10 rudders, 4 throttles
+    int rudderGranularity = m_Rudders / 2, throttleGranularity = m_Throttles - 1; // 10 rudders, 4 throttles
     int iterations;
     auto minScore = DBL_MAX;
     for (iterations = 1;  m_ControlReceiver->getTime() < endTime; iterations++) {
@@ -105,8 +107,13 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
                 cerr << referenceTrajectoryCopy[i].toString() << '\n' << futureStates.back().toString() << endl;
             }
             vector<VehicleState> simulated;
+//            auto newState = futureStates.back().simulate(c->getRudder(), c->getThrottle(), timeDiff,
+//                    m_CurrentEstimator.getCurrentDirection(),
+//                    m_CurrentEstimator.getCurrentSpeed(), simulated);
             auto newState = futureStates.back().simulate(c->getRudder(), c->getThrottle(), timeDiff, m_CurrentEstimator.getCurrent(), simulated);
-            double s = referenceTrajectoryCopy[i].getDistanceScore(newState) * getMPCWeight(i) + scores.back();
+            double s = compareStates(referenceTrajectoryCopy[i], newState) * getMPCWeight(newState.time - startCopy.time) + scores.back();
+//            double s = referenceTrajectoryCopy[i].getDistanceScore(newState) * getMPCWeight(newState.time - startCopy.time) + scores.back();
+
 //            if (c->getRudder() == 0 && c->getThrottle() == 1) cerr << "Score: " << s / n << endl;
 //            cerr << "Trying ";
 //            for (int k = 0; k <= i; k++) cerr << controls[k].getRudder() << ", " << controls[k].getThrottle() << "; ";
@@ -181,17 +188,36 @@ void Controller::sendAction()
             // TODO! -- support error cases, find out how to trigger e-stop
 
             // grab current starting position and reference trajectory
+            cerr << "Controller getting ready to copy trajectory" << endl;
             mtx.lock();
+            cerr << "Controller copying trajectory of length " << m_ReferenceTrajectory.size() << endl;
             State startCopy(m_CurrentLocation);
             vector<State> referenceTrajectoryCopy;
+            double lookahead = m_UseBranching? 30 : 6;
             for (const auto& s : m_ReferenceTrajectory)
-                if (s.time > m_ControlReceiver->getTime() + 1 && s.time < m_ControlReceiver->getTime() + 6)
+                if (s.time > m_ControlReceiver->getTime() + 1 &&
+                        (referenceTrajectoryCopy.empty() ||  s.time < m_ControlReceiver->getTime() + lookahead))
                     referenceTrajectoryCopy.push_back(s);
+//            cerr << "Resulting copied trajectory of length " << referenceTrajectoryCopy.size() << endl;
+            if (referenceTrajectoryCopy.empty()) {
+//                cerr << "Reference trajectory empty; sleeping for a bit" << endl;
+                this_thread::sleep_for(std::chrono::milliseconds(100));
+                mtx.unlock();
+                continue;
+            }
             auto trajectoryNumber = m_NextTrajectoryNumber;
             mtx.unlock();
+            cerr << "Starting control iteration from " << startCopy.toString() << endl;
             // actually do MPC
-            straightMpc(rudder, throttle, startCopy, referenceTrajectoryCopy, m_ControlReceiver->getTime() + 0.1, trajectoryNumber);
+            if (m_UseBranching) {
+                mpc(rudder, throttle, startCopy, referenceTrajectoryCopy, m_ControlReceiver->getTime() + 0.1, trajectoryNumber);
+            } else {
+                straightMpc(rudder, throttle, startCopy, referenceTrajectoryCopy, m_ControlReceiver->getTime() + 0.1, trajectoryNumber);
+            }
+            // add control to current estimator
+//            m_CurrentEstimator.addControl(rudder, throttle, getTime());
 //            cerr << "Controller picked a trajectory of length " << m_PredictedTrajectory.size() << endl;
+//            cerr << "with initial rudder " << rudder << " and throttle " << throttle << endl;
             std::vector<State> trajectory;
             for (const auto& v : m_PredictedTrajectory) trajectory.push_back(v);
             if (m_ControlReceiver) m_ControlReceiver->displayTrajectory(trajectory, false);
@@ -201,7 +227,7 @@ void Controller::sendAction()
         } else {
             this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-//        cerr << "Current: " <<  m_CurrentEstimator.getCurrent().first << ", " << m_CurrentEstimator.getCurrent().second << endl;
+        cerr << "Current: " <<  m_CurrentEstimator.getCurrent().first << ", " << m_CurrentEstimator.getCurrent().second << endl;
 
     }
     cerr << "Ending thread for MPC" << endl;
@@ -226,6 +252,10 @@ void Controller::terminate()
 void Controller::startSendingControls()
 {
     m_CurrentEstimator.resetCurrentEstimate();
+//    mtx.lock();
+//    VehicleState startCopy(m_CurrentLocation);
+//    mtx.unlock();
+//    m_CurrentEstimator.initialize(startCopy);
     plan = true;
 }
 
@@ -284,6 +314,8 @@ State Controller::estimateStateInFuture(double desiredTime, long& trajectoryNumb
 //    cerr << "Picked state " << s.toString() << " to estimate from" << endl;
     // return an estimate at the desired time based on the controls
     vector<VehicleState> simulated;
+//    auto ret = s.simulate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrentDirection(),
+//                          m_CurrentEstimator.getCurrentSpeed(), simulated);
     auto ret = s.simulate(r, t, desiredTime - s.time, m_CurrentEstimator.getCurrent(), simulated);
 //    // set the heading to ignore current (what we in the business call a *hack*)
 //    auto last = simulated.back();
@@ -295,8 +327,16 @@ State Controller::estimateStateInFuture(double desiredTime, long& trajectoryNumb
 
     // finding net heading (accounting for current) // WRONG
     // but current estimator is also wrong so need to fix that
+
     auto dx = ret.speed * cos(ret.yaw()) + m_CurrentEstimator.getCurrent().first;
     auto dy = ret.speed * sin(ret.yaw()) + m_CurrentEstimator.getCurrent().second;
+
+//    auto deltaEV = m_CurrentEstimator.getCurrentSpeed();
+//
+//    auto dx = ret.speed * cos(ret.yaw()) + deltaEV * sin(m_CurrentEstimator.getCurrentDirection());
+//    auto dy = ret.speed * sin(ret.yaw()) + deltaEV * cos(m_CurrentEstimator.getCurrentDirection());
+//
+
     ret.heading = M_PI_2 - atan2(dy, dx);
 //    cerr << "Estimated state " << ret.toString() << "\n Which is " << s.distanceTo(ret) << " meters away from that one" << endl;
 //    cerr << "with controls r = " << r << ", t = " << t << " and current " <<
@@ -326,10 +366,13 @@ void Controller::straightMpc(double& r, double& t, State startCopy, std::vector<
 
     // update current estimator // why here though?
     m_FutureStuffMutex.lock();
+//    m_CurrentEstimator.updateEstimate2(startCopy, m_PredictedTrajectory);
     m_CurrentEstimator.updateEstimate(startCopy, m_PredictedTrajectory);
+//    m_CurrentEstimator.update(startCopy);
     m_FutureStuffMutex.unlock();
 
-    int rudderGranularity = 5, throttleGranularity = 4; // 11 rudders, 5 throttles (counts zero)
+    // rudders on both sides of zero, and throttles count zero
+    int rudderGranularity = m_Rudders / 2, throttleGranularity = m_Throttles - 1;
 
     VehicleState start(startCopy);
 
@@ -346,8 +389,12 @@ void Controller::straightMpc(double& r, double& t, State startCopy, std::vector<
                 double score = 0;
                 for (int i = 0; i < referenceTrajectoryCopy.size(); i++) {
                     const auto& reference = referenceTrajectoryCopy[i];
+//                    currentState = currentState.simulate(rudder, throttle, reference.time - currentState.time,
+//                            m_CurrentEstimator.getCurrentDirection(),
+//                            m_CurrentEstimator.getCurrentSpeed(), simulated);
                     currentState = currentState.simulate(rudder, throttle, reference.time - currentState.time, m_CurrentEstimator.getCurrent(), simulated);
-                    score += reference.getDistanceScore(currentState) * (1.0 / (i + 1));
+                    score += compareStates(reference, currentState) * getMPCWeight(currentState.time - startCopy.time);
+//                    score += reference.getDistanceScore(currentState) * getMPCWeight(currentState.time - startCopy.time);
                 }
                 if (score < minScore) {
                     minScore = score;
@@ -370,6 +417,28 @@ void Controller::straightMpc(double& r, double& t, State startCopy, std::vector<
         throttleGranularity *= 2;
     }
 
+}
+
+void Controller::updateConfig(int useBranching, double weightSlope, double weightStart, int rudders, int throttles,
+                              double distanceWeight, double headingWeight, double speedWeight) {
+    m_UseBranching = useBranching;
+    m_WeightSlope = weightSlope; m_WeightStart = weightStart;
+    m_Rudders = rudders; m_Throttles = throttles;
+    m_DistanceWeight = distanceWeight; m_HeadingWeight = headingWeight; m_SpeedWeight = speedWeight;
+}
+
+double Controller::getMPCWeight(double timeFromStart) const {
+    return m_WeightStart + timeFromStart * m_WeightSlope;
+}
+
+double Controller::compareStates(const State& s1, const VehicleState& s2) const {
+    // ignore differences in time
+    double headingDiff = fabs(fmod((s1.heading - s2.heading), 2 * M_PI));
+    auto speedDiff = fabs(s1.speed - s2.speed);
+    auto dx = s1.x - s2.x;
+    auto dy = s1.y - s2.y;
+    auto d = sqrt(dx * dx + dy * dy);
+    return m_DistanceWeight * d + m_HeadingWeight * headingDiff * m_SpeedWeight * speedDiff;
 }
 
 

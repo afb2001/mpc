@@ -29,6 +29,7 @@
   <exec_depend>rosbag</exec_depend>
   <exec_depend>project11</exec_depend>
   <depend>path_planner</depend>
+  <depend>dynamic_reconfigure</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
