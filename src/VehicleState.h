@@ -20,6 +20,10 @@ public:
         rpm = idle_rpm + (state.speed / max_speed) * (max_rpm - idle_rpm);
     }
 
+    VehicleState simulate(double rudder, double throttle, double t) {
+        return simulate(rudder, throttle, t, std::make_pair(0.0, 0.0));
+    }
+
     VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent) {
         std::vector<VehicleState> simulated;
         return simulate(rudder, throttle, t, estimatedCurrent, simulated);

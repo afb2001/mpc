@@ -45,7 +45,7 @@ include_directories(
 
 add_executable(${PROJECT_NAME}_node
         src/mpc_node.cpp
-        src/controller.cpp)
+        src/controller.cpp src/OtherCurrentEstimator.cpp src/OtherCurrentEstimator.h)
 
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)

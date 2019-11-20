@@ -40,6 +40,12 @@ public:
             estimatedCurrentVector[currentEstimateIteration] = old;
             currentEstimateIteration = (currentEstimateIteration + 1) % estimatedCurrentVector.size();
         }
+        // hack to cap current
+        if (estimatedCurrent.first > 5) estimatedCurrent.first = 5;
+        if (estimatedCurrent.first < -5) estimatedCurrent.first = -5;
+        if (estimatedCurrent.second > 5) estimatedCurrent.second = 5;
+        if (estimatedCurrent.second < -5) estimatedCurrent.second = -5;
+
         // if the trajectory is empty still update the old time
         previousTime = currentState.time;
         std::cerr << "Estimated current: " << estimatedCurrent.first << ", " << estimatedCurrent.second << std::endl;

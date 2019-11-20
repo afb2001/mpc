@@ -10,6 +10,7 @@
 #include "path_planner/State.h"
 #include "VehicleState.h"
 #include "current_estimator.h"
+#include "OtherCurrentEstimator.h"
 #include <mutex>
 #include <random>
 #include "path_planner/Trajectory.h"
@@ -173,7 +174,8 @@ private:
     std::vector<std::pair<double,double>> m_FutureControls;
     std::vector<VehicleState> m_PredictedTrajectory;
 
-    CurrentEstimator m_CurrentEstimator;
+//    CurrentEstimator m_CurrentEstimator;
+    OtherCurrentEstimator m_CurrentEstimator;
 
     long m_TrajectoryNumber = 0;
     long m_NextTrajectoryNumber = 0;
