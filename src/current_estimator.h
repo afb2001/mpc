@@ -21,6 +21,7 @@ public:
      * @param predictedTrajectory the old predicted trajectory
      */
     void updateEstimate(const State &currentState, const std::vector<VehicleState>& predictedTrajectory) {
+        if (estimatedCurrentVector.empty()) return;
         if (previousTime != 0 && previousTime != currentState.time && predictedTrajectory.size() > 1) {
             int index = 1;
             for (; index < predictedTrajectory.size(); index++) {
@@ -28,17 +29,20 @@ public:
                     break;
                 }
             }
-            if (predictedTrajectory[index].time <= 0) return; // if the states are invalid don't estimate current
+            auto dTime = currentState.time - predictedTrajectory[0].time;
+            if (predictedTrajectory[index].time <= 0 || dTime == 0) return; // if the states are invalid don't estimate current
             auto old = estimatedCurrentVector[currentEstimateIteration];
-            estimatedCurrent.first -= old.first / estimatedCurrentVector.size();
-            estimatedCurrent.second -= old.second / estimatedCurrentVector.size();
+            estimatedCurrent.first -= old.first / c_BufferSize;
+            estimatedCurrent.second -= old.second / c_BufferSize;
             auto interpolated = predictedTrajectory[index - 1].interpolate(predictedTrajectory[index], currentState.time);
-            old.first += (currentState.x -interpolated.x);
-            old.second += (currentState.y - interpolated.y);
-            estimatedCurrent.first += old.first / estimatedCurrentVector.size();
-            estimatedCurrent.second += old.second / estimatedCurrentVector.size();
-            estimatedCurrentVector[currentEstimateIteration] = old;
-            currentEstimateIteration = (currentEstimateIteration + 1) % estimatedCurrentVector.size();
+            // careful, this used to be += and you changed it to just =
+            old.first = (currentState.x -interpolated.x) / dTime;
+            old.second = (currentState.y - interpolated.y) / dTime;
+            estimatedCurrent.first += old.first / c_BufferSize;
+            estimatedCurrent.second += old.second / c_BufferSize;
+            if (!(old.first == nan("") || old.second == nan("")))
+                estimatedCurrentVector[currentEstimateIteration] = old;
+            currentEstimateIteration = (currentEstimateIteration + 1) % c_BufferSize;
         }
         // hack to cap current
         if (estimatedCurrent.first > 5) estimatedCurrent.first = 5;
@@ -95,8 +99,8 @@ public:
      * @return a pair of doubles representing the m/s of displacement in <x, y>
      */
     std::pair<double, double> getCurrent() const {
-//        return std::make_pair(0.0, 0.0);
-        return estimatedCurrent;
+        return std::make_pair(0.0, 0.0);
+//        return estimatedCurrent;
     }
 
 
@@ -111,13 +115,19 @@ public:
     /**
      * Reset the estimate of the current to <0, 0> m/s.
      */
-    void resetCurrentEstimate() { estimatedCurrentVector = std::vector<std::pair<double,double>>(5); }
+    void resetCurrentEstimate() {
+        estimatedCurrentVector = std::vector<std::pair<double,double>>(c_BufferSize,
+                std::make_pair(0.0, 0.0));
+        estimatedCurrent = std::make_pair(0, 0);
+    }
 
 private:
     std::pair<double, double> estimatedCurrent;
     std::vector<std::pair<double, double>> estimatedCurrentVector;
     unsigned long currentEstimateIteration = 0;
     double previousTime = 0;
+
+    static constexpr int c_BufferSize = 5;
 
     // Chao's variables for current estimation
     double estimate_effect_speed = 0, estimate_effect_direction = 0;
