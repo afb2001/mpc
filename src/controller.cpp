@@ -1,6 +1,7 @@
 #include <thread>
 #include <path_planner/Trajectory.h>
 #include <path_planner/TrajectoryDisplayer.h>
+#include <queue>
 #include "controller.h"
 
 using namespace std;
@@ -176,6 +177,126 @@ void Controller::mpc(double& r, double& t, State startCopy, vector<State> refere
         m_FutureStuffMutex.unlock();
     }
 //    cerr << "Managed " << iterations << " iterations of MPC" << endl;
+}
+
+void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber)
+{
+    // TODO! -- write a similar method to do MPC the first time when we need to find a state 1s in the future
+    // also write something to kick this off in a new thread for a few iterations (see notes)
+    // should be able to make reference trajectory copy a const reference. could help performance
+    // TODO! -- update current estimator
+
+    // TODO! -- acquire current estimate from updated estimator
+    std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
+
+    assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
+
+    double rudderGranularity = 1.0 / (m_Rudders / 2), throttleGranularity = 1.0 / (m_Throttles - 1);
+    double minRudder = -1, midRudder = 0, maxRudder = 1;
+    double minThrottle = 0, maxThrottle = 1;
+
+    // Use a queue to do breadth first search in the space of future controls, keeping track of only the first control
+    // in the sequence, which is what is to be emitted, and the most recent control, so we know which controls to expand
+    // with next.
+    struct MpcState {
+    public:
+        VehicleState State;
+        double InitialRudder, InitialThrottle;
+        double LastRudder, LastThrottle;
+        int Depth;
+        double PrevScore;
+    };
+
+    std::queue<MpcState> open;
+    MpcState startMpcState = {
+            startCopy,
+            NAN,
+            NAN,
+            m_LastRudder,
+            m_LastThrottle,
+            0,
+            0,
+    };
+    open.push(startMpcState);
+
+    int iterations = 1; // will go through loop once for start and then for each descendent before r and t are updated
+    auto minScore = DBL_MAX;
+    double bestCurrentRudder = 0, bestCurrentThrottle = 0;
+    while (m_ControlReceiver->getTime() < endTime) {
+        // cut out when the reference trajectory is updated
+        if (!validTrajectoryNumber(trajectoryNumber)) return;
+        assert(!open.empty());
+        auto s = open.front(); open.pop();
+
+        if (s.Depth > iterations) {
+            assert(s.Depth == iterations + 1);
+            // new iteration
+            iterations = s.Depth;
+            minScore = DBL_MAX;
+            // since the iteration is done, assign the best rudder and throttle
+            r = bestCurrentRudder;
+            t = bestCurrentThrottle;
+        }
+
+        bool filledTrajectory = iterations > referenceTrajectoryCopy.size();
+        if (filledTrajectory) {
+            cerr << "Filled entire trajectory" << endl;
+            break;
+        }
+
+        // set up (unique) rudders
+        // use tolerance to avoid very similar values due to floating point error
+        std::vector<double> rudders = {minRudder, midRudder, maxRudder};
+        auto lowRudder = s.LastRudder - rudderGranularity;
+        auto highRudder = s.LastRudder + rudderGranularity;
+        if (minRudder + c_Tolerance < lowRudder && fabs(midRudder - lowRudder) < c_Tolerance) rudders.push_back(lowRudder);
+        if (fabs(midRudder - highRudder) < c_Tolerance && maxRudder > highRudder + c_Tolerance) rudders.push_back(highRudder);
+        if (minRudder != s.LastRudder && midRudder != s.LastRudder && maxRudder != s.LastRudder) rudders.push_back(s.LastRudder);
+
+        // and (unique) throttles
+        std::vector<double> throttles = {minThrottle, maxThrottle};
+        auto lowThrottle = s.LastThrottle - throttleGranularity;
+        auto highThrottle = s.LastThrottle + throttleGranularity;
+        if (minThrottle + c_Tolerance < lowThrottle) throttles.push_back(lowThrottle);
+        if (maxThrottle > highThrottle + c_Tolerance) throttles.push_back(lowThrottle);
+        if (minThrottle != s.LastThrottle && maxThrottle != s.LastThrottle) throttles.push_back(s.LastThrottle);
+
+        // If we're before the state given to the planner, full weight, otherwise 1/10th weight.
+        double weight = s.State.time < referenceTrajectoryCopy[1].time ? 1.0 : 0.1;
+
+        auto score = compareStates(interpolateTo(s.State.time, referenceTrajectoryCopy), s.State) * weight + s.PrevScore;
+        if (s.Depth > 0) {
+            if (score < minScore) {
+                bestCurrentRudder = s.InitialRudder;
+                bestCurrentThrottle = s.InitialThrottle;
+                minScore = score;
+            }
+        } else {
+            score = 0;
+        }
+        // expansion for breadth first search
+        for (auto rudder : rudders) {
+            for (auto throttle : throttles) {
+                auto next = s.State.simulate(rudder, throttle, c_ScoringTimeStep, currentEstimate);
+                MpcState nextMpcState{
+                    next,
+                    s.InitialRudder,
+                    s.InitialThrottle,
+                    rudder,
+                    throttle,
+                    s.Depth + 1,
+                    score,
+                    };
+                if (s.Depth == 0) {
+                    // assign initial rudder and throttle on first iteration
+                    nextMpcState.InitialRudder = rudder; nextMpcState.InitialThrottle = throttle;
+                }
+                open.push(nextMpcState);
+            }
+        }
+    }
+
+    assert(r != NAN && t != NAN);
 }
 
 void Controller::sendAction()
@@ -439,6 +560,26 @@ double Controller::compareStates(const State& s1, const VehicleState& s2) const 
     auto dy = s1.y - s2.y;
     auto d = sqrt(dx * dx + dy * dy);
     return m_DistanceWeight * d + m_HeadingWeight * headingDiff * m_SpeedWeight * speedDiff;
+}
+
+State Controller::interpolateTo(double desiredTime, const std::vector<State>& trajectory) {
+    if (trajectory.size() < 2) throw std::logic_error("Cannot interpolate on a trajectory with fewer than 2 states");
+    int i = 1;
+    for (; i < trajectory.size() && trajectory[i].time < desiredTime; i++) ;
+    if (trajectory[i].time < desiredTime) std::cerr << "Warning: extrapolating instead of interpolating" << std::endl;
+    return trajectory[i - 1].interpolate(trajectory[i], desiredTime);
+}
+
+bool Controller::sendControl(double rudder, double throttle, long trajectoryNumber) {
+    std::unique_lock<mutex> lock1(m_TrajectoryNumberMutex);
+    if (trajectoryNumber != m_TrajectoryNumber) return false;
+    m_ControlReceiver->receiveControl(rudder, throttle);
+    return true;
+}
+
+bool Controller::validTrajectoryNumber(long trajectoryNumber) {
+    std::unique_lock<mutex> lock1(m_TrajectoryNumberMutex);
+    return trajectoryNumber == m_TrajectoryNumber;
 }
 
 

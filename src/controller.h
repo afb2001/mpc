@@ -93,6 +93,17 @@ public:
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
 
     /**
+     * Different branching MPC. More details forthcoming.
+     * @param r
+     * @param t
+     * @param startCopy
+     * @param referenceTrajectoryCopy
+     * @param endTime
+     * @param trajectoryNumber
+     */
+    void mpc3(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
+
+    /**
      * MPC but only one control out to the end of the trajectory.
      * Assumes reference trajectory is appropriately spaced. Interpolate reference trajectory beforehand if desired.
      * @param r resulting rudder
@@ -181,6 +192,8 @@ private:
     long m_NextTrajectoryNumber = 0;
     std::mutex m_TrajectoryNumberMutex;
 
+    double m_LastRudder, m_LastThrottle; // should replace with some kind of collection with time stamps
+
     /**
      * Get the score weight for a state along the reference trajectory at the given index
      * @param index index of the state on the reference trajectory
@@ -192,6 +205,15 @@ private:
     double compareStates(const State& s1, const VehicleState& s2) const;
 
     void sendAction();
+
+    bool sendControl(double rudder, double throttle, long trajectoryNumber);
+
+    bool validTrajectoryNumber(long trajectoryNumber);
+
+    static constexpr double c_ScoringTimeStep = 0.5;
+    static constexpr double c_Tolerance = 1.0e-5;
+
+    static State interpolateTo(double desiredTime, const std::vector<State>& trajectory);
 };
 
 

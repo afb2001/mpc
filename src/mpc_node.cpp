@@ -91,7 +91,7 @@ public:
         for (const auto &s : inmsg->states) {
             states.push_back(getState(s));
         }
-        std::cerr << states.size() << std::endl;
+//        std::cerr << states.size() << std::endl;
 //        m_TrajectoryNumber = inmsg->trajectoryNumber;
         m_Controller->receiveRequest(states, inmsg->trajectoryNumber);
     }
