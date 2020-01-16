@@ -45,6 +45,22 @@ TEST(ControllerUnitTests, straightGoNowhere)
     EXPECT_DOUBLE_EQ(t, 0.0);
 }
 
+TEST(ControllerUnitTests, goNowhere3)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(true, 0, 0, 10, 4, 1, 1, 0);
+    State start(0,0,0,0,6);
+    vector<State> reference;
+    reference.emplace_back(0,0,0,0,7);
+    reference.emplace_back(0,0,0,0,8);
+    reference.emplace_back(0,0,0,0,9);
+    double r, t;
+    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.25);
+//    EXPECT_DOUBLE_EQ(r, 0.0);
+    EXPECT_DOUBLE_EQ(t, 0.0);
+}
+
 TEST(ControllerUnitTests, goNorth)
 {
     NodeStub stub;
@@ -71,6 +87,21 @@ TEST(ControllerUnitTests, straightGoNorth)
     controller.straightMpc(r, t, start, reference, Controller::getTime() + 0.05);
     EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 0.75); // same result as with throttle = 1 because the rpms are too low for it to matter
+}
+
+TEST(ControllerUnitTests, goNorth3)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(true, 0, 0, 10, 4, 1, 1, 0);
+    State start(0,0,0,0,Controller::getTime());
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(0,0.02,0,0.1,Controller::getTime() + 1);
+    reference.emplace_back(0,3.5,0,2,Controller::getTime() + 2);
+    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.05);
+    EXPECT_DOUBLE_EQ(r, 0.0);
+    EXPECT_DOUBLE_EQ(t, 1.0);
 }
 
 TEST(ControllerUnitTests, goEast)
@@ -101,6 +132,21 @@ TEST(ControllerUnitTests, straightGoEast)
     EXPECT_DOUBLE_EQ(t, 0.75);
 }
 
+TEST(ControllerUnitTests, goEast3)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(true, 0, 0, 10, 4, 1, 1, 0);
+    State start(0,0,0,0,Controller::getTime());
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(1,0,M_PI/2,2.5,Controller::getTime() + 1);
+    reference.emplace_back(3.5,0,M_PI/2,2.5,Controller::getTime() + 2);
+    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.25);
+    EXPECT_DOUBLE_EQ(r, 1);
+    EXPECT_DOUBLE_EQ(t, 1.0);
+}
+
 TEST(ControllerUnitTests, goWest)
 {
     NodeStub stub;
@@ -129,6 +175,21 @@ TEST(ControllerUnitTests, straightGoWest)
     EXPECT_DOUBLE_EQ(t, 0.75);
 }
 
+TEST(ControllerUnitTests, goWest3)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(true, 0, 0, 10, 4, 1, 1, 0);
+    State start(0,0,0,0,Controller::getTime());
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(-1,0,-M_PI/2,2.5,Controller::getTime() + 1);
+    reference.emplace_back(-3.5,0,-M_PI/2,2.5,Controller::getTime() + 2);
+    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.25);
+    EXPECT_DOUBLE_EQ(r, -1);
+    EXPECT_DOUBLE_EQ(t, 1.0);
+}
+
 TEST(ControllerUnitTests, realStateTest1)
 {
     NodeStub stub;
@@ -154,6 +215,24 @@ TEST(ControllerUnitTests, straightRealStateTest1)
     controller.straightMpc(r, t, start, reference, Controller::getTime() + 0.25);
     EXPECT_NEAR(r,0.8, 0.001);
     EXPECT_NEAR(t, 0.75, 0.001);
+}
+
+TEST(ControllerUnitTests, realStateTest3)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(true, 0, 0, 10, 5, 1, 1, 0);
+    VehicleState start(State(0,0,2,2.3,7));
+    vector<State> reference;
+    double r, t;
+    auto s1 = start.simulate(-0.2, 1, 1, pair<double,double>(0,0));
+    auto s2 = s1.simulate(-0.2, 1, 1, pair<double,double>(0,0));
+    reference.push_back(start);
+    reference.push_back(s1);
+    reference.push_back(s2);
+    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.1);
+    EXPECT_NEAR(r,-0.2, 0.001);
+    EXPECT_NEAR(t, 1, 0.001);
 }
 
 TEST(ControllerUnitTests, trajectoryDepthTest1)
@@ -220,6 +299,24 @@ TEST(ControllerUnitTests, straightTurnAroundTest1)
     reference.emplace_back(0, -8, M_PI, 2, 11);
     reference.emplace_back(0, -10, M_PI, 2, 12);
     controller.straightMpc(r, t, start, reference, Controller::getTime() + 0.25);
+    EXPECT_DOUBLE_EQ(fabs(r), 1);
+    EXPECT_LT(t, 0.3);
+}
+
+TEST(ControllerUnitTests, turnAroundTest3)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(true, 0, 0, 10, 5, 1, 1, 0);
+    VehicleState start(State(0,0,0,1,7.5));
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(0, -2, M_PI, 2, 8);
+    reference.emplace_back(0, -4, M_PI, 2, 9);
+    reference.emplace_back(0, -6, M_PI, 2, 10);
+    reference.emplace_back(0, -8, M_PI, 2, 11);
+    reference.emplace_back(0, -10, M_PI, 2, 12);
+    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.1);
     EXPECT_DOUBLE_EQ(fabs(r), 1);
     EXPECT_LT(t, 0.3);
 }

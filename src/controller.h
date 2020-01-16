@@ -102,6 +102,18 @@ public:
      * @param trajectoryNumber
      */
     void mpc3(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
+    /**
+     * (for lack of a better name)
+     * Same as mpc3 but returns the state expected to be in 1s in the future
+     * @param r
+     * @param t
+     * @param startCopy
+     * @param referenceTrajectoryCopy
+     * @param endTime
+     * @param trajectoryNumber
+     * @return
+     */
+    State mpc4(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
 
     /**
      * MPC but only one control out to the end of the trajectory.
@@ -214,6 +226,14 @@ private:
     static constexpr double c_Tolerance = 1.0e-5;
 
     static State interpolateTo(double desiredTime, const std::vector<State>& trajectory);
+    /**
+     * Interpolate along the given trajectory to the desired time.
+     * Stores the result in the trajectory for re-use
+     * @param desiredTime
+     * @param trajectory
+     * @return
+     */
+    static State interpolateTo(double desiredTime, std::list<State>& trajectory);
 };
 
 
