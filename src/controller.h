@@ -44,6 +44,15 @@ public:
     void receiveRequest(const std::vector<State>& trajectory, long trajectoryNumber);
 
     /**
+     * Respond to the new service call that supplies a new reference trajectory and expects an estimated state 1s in
+     * the future. Starts a new thread to do MPC until the trajectory number is updated again.
+     * @param trajectory
+     * @param trajectoryNumber
+     * @return a state 1 second in the future
+     */
+    State updateReferenceTrajectory(std::vector<State>& trajectory, long trajectoryNumber);
+
+    /**
      * Update the controller's idea of the current state of the vehicle.
      * @param state the updated state
      */
@@ -113,7 +122,7 @@ public:
      * @param trajectoryNumber
      * @return
      */
-    State mpc4(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
+    State mpc4(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime);
 
     /**
      * MPC but only one control out to the end of the trajectory.
@@ -204,7 +213,7 @@ private:
     long m_NextTrajectoryNumber = 0;
     std::mutex m_TrajectoryNumberMutex;
 
-    double m_LastRudder, m_LastThrottle; // should replace with some kind of collection with time stamps
+    double m_LastRudder = 0, m_LastThrottle = 0; // should replace with some kind of collection with time stamps
 
     /**
      * Get the score weight for a state along the reference trajectory at the given index
@@ -222,16 +231,28 @@ private:
 
     bool validTrajectoryNumber(long trajectoryNumber);
 
+    VehicleState getStateAfterCurrentControl();
+
+    void sendControls(double r, double t);
+
     static constexpr double c_ScoringTimeStep = 0.5;
     static constexpr double c_Tolerance = 1.0e-5;
+    static constexpr double c_PlanningTime = 0.1; // Time (seconds) for controller to think between issuing controls
+    static constexpr double c_ReferenceTrajectoryExpirationTime = 5;
 
+    /**
+     * Interpolate along the given trajectory to the desired time.
+     * @param desiredTime
+     * @param trajectory
+     * @return the interpolated state
+     */
     static State interpolateTo(double desiredTime, const std::vector<State>& trajectory);
     /**
      * Interpolate along the given trajectory to the desired time.
      * Stores the result in the trajectory for re-use
      * @param desiredTime
      * @param trajectory
-     * @return
+     * @return the interpolated state
      */
     static State interpolateTo(double desiredTime, std::list<State>& trajectory);
 };

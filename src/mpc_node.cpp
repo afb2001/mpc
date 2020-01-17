@@ -9,6 +9,7 @@
 #include "actionlib/server/simple_action_server.h"
 #include "path_planner/Trajectory.h"
 #include "mpc/EstimateState.h"
+#include "mpc/UpdateReferenceTrajectory.h"
 #include <fstream>
 #include <geometry_msgs/PoseStamped.h>
 #include <path_planner/TrajectoryDisplayer.h>
@@ -42,6 +43,7 @@ public:
         m_speed_sub = m_node_handle.subscribe("/sog", 10, &MPCNode::speedCallback, this);
 
         m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
+        m_update_reference_trajectory_service = m_node_handle.advertiseService("/mpc/update_reference_trajectory", &MPCNode::updateReferenceTrajectory, this);
 
         m_Controller = new Controller(this);
 
@@ -168,6 +170,16 @@ public:
         return s.time != -1;
     }
 
+    bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
+        std::vector<State> states;
+        for (const auto &s : req.trajectory.states) {
+            states.push_back(getState(s));
+        }
+        auto s = m_Controller->updateReferenceTrajectory(states, m_TrajectoryNumber++);
+        res.state = getStateMsg(s);
+        return s.time != -1;
+    }
+
     double getTime() const override {
         return TrajectoryDisplayer::getTime();
     }
@@ -185,8 +197,9 @@ private:
     ros::Subscriber m_speed_sub;
 
     ros::ServiceServer m_estimate_state_service;
+    ros::ServiceServer m_update_reference_trajectory_service;
 
-//    long m_TrajectoryNumber = 0;
+    long m_TrajectoryNumber = 0;
 
     Controller* m_Controller;
     dynamic_reconfigure::Server<mpc::mpcConfig> m_Dynamic_Reconfigure_Server;
