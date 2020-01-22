@@ -2,6 +2,7 @@
 #include <path_planner/Trajectory.h>
 #include <path_planner/TrajectoryDisplayer.h>
 #include <queue>
+#include <future>
 #include "controller.h"
 
 using namespace std;
@@ -190,7 +191,9 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
     // TODO! -- acquire current estimate from updated estimator
     std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
 
+    cerr << "Starting MPC (3)" << endl;
     assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
+
 
     // intentional use of integer division (m_Rudders / 2)
     double rudderGranularity = 1.0 / (m_Rudders / 2), throttleGranularity = 1.0 / (m_Throttles - 1);
@@ -621,6 +624,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State>
 
     static_assert(c_ScoringTimeStep == 0.5, "This method makes an assumption about the scoring time step");
 
+    cerr << "Starting MPC (4)" << endl;
     // TODO! -- update current estimator
     // TODO! -- acquire current estimate from updated estimator
     std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
@@ -665,6 +669,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State>
     State result, intermediateResult; // state one second in the future
     while (m_ControlReceiver->getTime() < endTime) {
         assert(!open.empty());
+//        cerr << "Current time, " << m_ControlReceiver->getTime() << ", still less than MPC end time, " << endTime << endl;
         auto s = open.front(); open.pop();
 
         if (s.Depth > iterations) {
@@ -717,6 +722,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State>
                 bestCurrentThrottle = s.InitialThrottle;
                 minScore = score;
                 intermediateResult = s.OneSecondOut;
+                std::cerr << "Found new best trajectory with initial controls " << bestCurrentRudder << ", " << bestCurrentThrottle << std::endl;
             }
         } else {
             score = 0;
@@ -756,7 +762,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State>
     return result;
 }
 
-State Controller::updateReferenceTrajectory(std::vector<State>& trajectory, long trajectoryNumber) {
+State Controller::updateReferenceTrajectory(const vector<State>& trajectory, long trajectoryNumber) {
     if (trajectory.size() < 2) {
         // Not long enough for MPC. Balk out.
         // NOTE: previous MPC thread may still be running; that can time out on its own
@@ -773,46 +779,16 @@ State Controller::updateReferenceTrajectory(std::vector<State>& trajectory, long
     auto start = getStateAfterCurrentControl();
 
     double r, t;
-    auto result = mpc4(r, t, start, trajectory, getTime() + c_PlanningTime);
+    cerr << "Doing initial mpc..." << endl;
+    auto result = mpc4(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
+    cerr << "Finished initial mpc" << endl;
 
     // kick off the new MPC thread
-    auto mpcThread = thread([=, &trajectory]{ // doesn't copy reference trajectory
-        // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
-        int startIndex = -1, goalIndex = -1;
-        for (int i = 0; i < trajectory.size(); i++) {
-            if (start.time >= trajectory[i].time) continue;
-            else if (startIndex == -1){
-                startIndex = i - 1;
-                trajectory[startIndex] = start;
-            }
-            if (result.time < trajectory[i].time && goalIndex == -1) {
-                goalIndex = i - 1;
-                trajectory[goalIndex] = result;
-            }
-            if (goalIndex != -1 && startIndex != -1) break;
-        }
-        auto endTime = getTime() + c_ReferenceTrajectoryExpirationTime;
-        double r, t;
-        while (getTime() < endTime) {
-            if (!validTrajectoryNumber(trajectoryNumber)) break;
-            auto stateAfterCurrentControl = getStateAfterCurrentControl();
-            for (int i = startIndex; i < trajectory.size(); i++) {
-                if (stateAfterCurrentControl.time < trajectory[i].time) {
-                    if (i - 1 != goalIndex) { // don't overwrite the state we gave to the planner
-                        startIndex = i - 1;
-                        trajectory[startIndex] = stateAfterCurrentControl;
-                    }
-                    break;
-                }
-            }
-            mpc4(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime);
-            sendControls(r, t);
-        }
-        if (getTime() >= endTime) {
-            std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
-        }
-    });
+    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
     mpcThread.detach();
+//    auto mpcFuture = std::async(std::launch::async, &Controller::runMpc, this,
+//            trajectory, start, result, trajectoryNumber);
+
 
     sendControls(r, t);
 
@@ -837,6 +813,44 @@ void Controller::sendControls(double r, double t) {
     m_LastRudder = r;
     m_LastThrottle = t;
     m_ControlReceiver->receiveControl(r, t);
+}
+
+void Controller::runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber) {
+    cerr << "Starting new thread for MPC loop" << endl;
+    // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
+    int startIndex = -1, goalIndex = -1;
+    for (int i = 0; i < trajectory.size(); i++) {
+        if (start.time >= trajectory[i].time) continue;
+        else if (startIndex == -1){
+            startIndex = i - 1;
+            trajectory[startIndex] = start;
+        }
+        if (result.time < trajectory[i].time && goalIndex == -1) {
+            goalIndex = i - 1;
+            trajectory[goalIndex] = result;
+        }
+        if (goalIndex != -1 && startIndex != -1) break;
+    }
+    auto endTime = m_ControlReceiver->getTime() + c_ReferenceTrajectoryExpirationTime;
+    double r, t;
+    while (m_ControlReceiver->getTime() < endTime) {
+        if (!validTrajectoryNumber(trajectoryNumber)) break;
+        auto stateAfterCurrentControl = getStateAfterCurrentControl();
+        for (int i = startIndex; i < trajectory.size(); i++) {
+            if (stateAfterCurrentControl.time < trajectory[i].time) {
+                if (i - 1 != goalIndex) { // don't overwrite the state we gave to the planner
+                    startIndex = i - 1;
+                    trajectory[startIndex] = stateAfterCurrentControl;
+                }
+                break;
+            }
+        }
+        mpc3(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime);
+        sendControls(r, t);
+    }
+    if (m_ControlReceiver->getTime() >= endTime) {
+        std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
+    }
 }
 
 

@@ -71,9 +71,9 @@ public:
         std::string message = inmsg->data;
         std::cerr << "MPC node received message to: " << message << std::endl;
         if (message == "start running") {
-            m_Controller->startRunning();
+//            m_Controller->startRunning();
         } else if (message == "start sending controls") {
-            m_Controller->startSendingControls();
+//            m_Controller->startSendingControls();
         } else if (message == "terminate") {
             m_Controller->terminate();
         } else if (message == "stop sending controls") {
@@ -171,6 +171,7 @@ public:
     }
 
     bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
+        std::cerr << "Controller received reference trajectory of length: " << std::endl;
         std::vector<State> states;
         for (const auto &s : req.trajectory.states) {
             states.push_back(getState(s));

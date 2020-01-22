@@ -50,7 +50,7 @@ public:
      * @param trajectoryNumber
      * @return a state 1 second in the future
      */
-    State updateReferenceTrajectory(std::vector<State>& trajectory, long trajectoryNumber);
+    State updateReferenceTrajectory(const std::vector<State>& trajectory, long trajectoryNumber);
 
     /**
      * Update the controller's idea of the current state of the vehicle.
@@ -234,6 +234,8 @@ private:
     VehicleState getStateAfterCurrentControl();
 
     void sendControls(double r, double t);
+
+    void runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber);
 
     static constexpr double c_ScoringTimeStep = 0.5;
     static constexpr double c_Tolerance = 1.0e-5;
