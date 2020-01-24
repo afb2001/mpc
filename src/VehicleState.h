@@ -70,22 +70,22 @@ private:
 
     // TODO! -- should allow setting of boat characteristics; used to read from a file I think
     //model parameters
-    double idle_rpm = 0.0;
-    double max_rpm = 3200.0;
-    double max_rpm_change_rate = 1000.0;
-    double prop_ratio = 0.389105058;
-    double prop_pitch = 20.0;
-    double max_rudder_angle = M_PI / 6; // 30 degrees
-    double rudder_coefficient = 0.25;
-    double rudder_distance = 2.0;
-    double mass = 2000.0;
-    double max_power = 8948.4;
-    double max_speed = 2.75;
+    static constexpr double idle_rpm = 0.0;
+    static constexpr double max_rpm = 3200.0;
+    static constexpr double max_rpm_change_rate = 1000.0;
+    static constexpr double prop_ratio = 0.389105058;
+    static constexpr double prop_pitch = 20.0;
+    static constexpr double max_rudder_angle = M_PI / 6; // 30 degrees
+    static constexpr double rudder_coefficient = 0.25;
+    static constexpr double rudder_distance = 2.0;
+    static constexpr double mass = 2000.0;
+    static constexpr double max_power = 8948.4;
+    static constexpr double max_speed = 2.75;
     // useful derived parameters
-    double max_prop_speed = (max_rpm * prop_ratio) / prop_pitch;
-    double max_force = max_power / max_speed;
-    double prop_coefficient = max_force / (max_prop_speed * max_prop_speed - max_speed * max_speed);
-    double drag_coefficient = max_force / (pow(max_speed, 3));
+    static constexpr double max_prop_speed = (max_rpm * prop_ratio) / prop_pitch;
+    static constexpr double max_force = max_power / max_speed;
+    static constexpr double prop_coefficient = max_force / (max_prop_speed * max_prop_speed - max_speed * max_speed);
+    static constexpr double drag_coefficient = max_force / (max_speed * max_speed * max_speed);
 
     VehicleState estimate(VehicleState& state, double rudder, double throttle, double d_time,
             double currentDirection, double currentSpeed) {

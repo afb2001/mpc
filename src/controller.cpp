@@ -778,7 +778,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 
     auto start = getStateAfterCurrentControl();
 
-    double r, t;
+    double r = 0, t = 0;
     cerr << "Doing initial mpc..." << endl;
     auto result = mpc4(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
     cerr << "Finished initial mpc" << endl;
@@ -832,7 +832,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
         if (goalIndex != -1 && startIndex != -1) break;
     }
     auto endTime = m_ControlReceiver->getTime() + c_ReferenceTrajectoryExpirationTime;
-    double r, t;
+    double r = 0, t = 0;
     while (m_ControlReceiver->getTime() < endTime) {
         if (!validTrajectoryNumber(trajectoryNumber)) break;
         auto stateAfterCurrentControl = getStateAfterCurrentControl();
