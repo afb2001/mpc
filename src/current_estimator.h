@@ -25,15 +25,15 @@ public:
         if (previousTime != 0 && previousTime != currentState.time && predictedTrajectory.size() > 1) {
             int index = 1;
             for (; index < predictedTrajectory.size(); index++) {
-                if (currentState.time < predictedTrajectory[index].time) {
+                if (currentState.time < predictedTrajectory[index].state.time) {
                     break;
                 }
             }
-            if (predictedTrajectory[index].time <= 0) return; // if the states are invalid don't estimate current
+            if (predictedTrajectory[index].state.time <= 0) return; // if the states are invalid don't estimate current
             auto old = estimatedCurrentVector[currentEstimateIteration];
             estimatedCurrent.first -= old.first / c_BufferSize;
             estimatedCurrent.second -= old.second / c_BufferSize;
-            auto interpolated = predictedTrajectory[index - 1].interpolate(predictedTrajectory[index], currentState.time);
+            auto interpolated = predictedTrajectory[index - 1].state.interpolate(predictedTrajectory[index], currentState.time);
             old.first += (currentState.x -interpolated.x);
             old.second += (currentState.y - interpolated.y);
             if (!(old.first == nan("") || old.second == nan(""))) {
@@ -66,7 +66,7 @@ public:
             double cx = startCopy.x;
             double cy = startCopy.y;
             int index = 0;
-            while (index < future.size() - 1 && future[index + 1].time < startCopy.time) index++;
+            while (index < future.size() - 1 && future[index + 1].state.time < startCopy.time) index++;
 //            for (int i = 1; i < future.size(); i++) {
 //                if (ptime <= future[i].time) {
 //                    index = (fabs(future[i].time - ptime) < fabs(future[i - 1].time - ptime)) ? i : i - 1;
@@ -74,9 +74,9 @@ public:
 //                }
 //            }
 //            double dtime = future[index].time - (future[0].time - 0.05);
-            double dtime = future[index].time - startCopy.time;
-            double diffx = (startCopy.x - future[index].x) / dtime;
-            double diffy = (startCopy.y - future[index].y) / dtime;
+            double dtime = future[index].state.time - startCopy.time;
+            double diffx = (startCopy.x - future[index].state.x) / dtime;
+            double diffy = (startCopy.y - future[index].state.y) / dtime;
             double deltax = estimate_effect_speed * sin(estimate_effect_direction);
             double deltay = estimate_effect_speed * cos(estimate_effect_direction);
             deltax += diffx / iteration;

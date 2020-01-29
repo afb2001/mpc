@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_service_files(
         FILES
-        EstimateState.srv
         UpdateReferenceTrajectory.srv
 )
 
