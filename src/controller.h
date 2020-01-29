@@ -122,7 +122,7 @@ public:
      * @param trajectoryNumber
      * @return
      */
-    State mpc4(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime);
+    State mpc4(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy, double endTime);
 
     /**
      * MPC but only one control out to the end of the trajectory.
@@ -237,7 +237,7 @@ private:
 
     void runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber);
 
-    static constexpr double c_ScoringTimeStep = 0.5;
+    static constexpr double c_ScoringTimeStep = 1;
     static constexpr double c_Tolerance = 1.0e-5;
     static constexpr double c_PlanningTime = 0.1; // Time (seconds) for controller to think between issuing controls
     static constexpr double c_ReferenceTrajectoryExpirationTime = 5;

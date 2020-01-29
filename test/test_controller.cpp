@@ -520,6 +520,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
         referenceTrajectory.push_back(s);
     }
     auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
+    EXPECT_NE(result.time, -1);
     cerr << result.toString() << endl;
     for (int i = 0; i < 20; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -528,6 +529,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
         cerr << start.toString() << endl;
     }
     result = controller.updateReferenceTrajectory(referenceTrajectory, 1);
+    EXPECT_NE(result.time, -1);
     cerr << result.toString() << endl;
     for (int i = 0; i < 110; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));

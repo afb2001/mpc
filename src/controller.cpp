@@ -191,7 +191,7 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
     // TODO! -- acquire current estimate from updated estimator
     std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
 
-    cerr << "Starting MPC (3)" << endl;
+//    cerr << "Starting MPC (3)" << endl;
     assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
 
 
@@ -230,7 +230,10 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
     State lastInterpolated(-1); // cache last interpolated state on reference trajectory
     while (m_ControlReceiver->getTime() < endTime) {
         // cut out when the reference trajectory is updated
-        if (!validTrajectoryNumber(trajectoryNumber)) return;
+        if (!validTrajectoryNumber(trajectoryNumber)) {
+//            cerr << "Trajectory number " << trajectoryNumber << " not valid." << endl;
+            return;
+        }
         assert(!open.empty());
         auto s = open.front(); open.pop();
 
@@ -242,7 +245,7 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
             // since the iteration is done, assign the best rudder and throttle
             r = bestCurrentRudder;
             t = bestCurrentThrottle;
-            std::cerr << "Assigned r and t" << std::endl;
+//            std::cerr << "Assigned r and t" << std::endl;
         }
 
         bool filledTrajectory = iterations > referenceTrajectoryCopy.size();
@@ -282,7 +285,7 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
                 bestCurrentRudder = s.InitialRudder;
                 bestCurrentThrottle = s.InitialThrottle;
                 minScore = score;
-                std::cerr << "Found new best trajectory with initial controls " << bestCurrentRudder << ", " << bestCurrentThrottle << std::endl;
+//                std::cerr << "Found new best trajectory with initial controls " << bestCurrentRudder << ", " << bestCurrentThrottle << std::endl;
             }
         } else {
             score = 0;
@@ -619,12 +622,12 @@ bool Controller::validTrajectoryNumber(long trajectoryNumber) {
     return trajectoryNumber == m_TrajectoryNumber;
 }
 
-State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy,
+State Controller::mpc4(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy,
                        double endTime) {
 
-    static_assert(c_ScoringTimeStep == 0.5, "This method makes an assumption about the scoring time step");
+    static_assert(c_ScoringTimeStep == 1, "This method makes an assumption about the scoring time step");
 
-    cerr << "Starting MPC (4)" << endl;
+//    cerr << "Starting MPC (4)" << endl;
     // TODO! -- update current estimator
     // TODO! -- acquire current estimate from updated estimator
     std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
@@ -722,7 +725,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State>
                 bestCurrentThrottle = s.InitialThrottle;
                 minScore = score;
                 intermediateResult = s.OneSecondOut;
-                std::cerr << "Found new best trajectory with initial controls " << bestCurrentRudder << ", " << bestCurrentThrottle << std::endl;
+//                std::cerr << "Found new best trajectory with initial controls " << bestCurrentRudder << ", " << bestCurrentThrottle << std::endl;
             }
         } else {
             score = 0;
@@ -733,8 +736,9 @@ State Controller::mpc4(double& r, double& t, State startCopy, std::vector<State>
                 auto next = s.State.simulate(rudder, throttle, c_ScoringTimeStep, currentEstimate);
                 // If we're before iteration 2 we haven't gotten to one second out yet. On iteration 2, that is 1s in
                 // the future, so assign the field to the current state. Past that, grab the previous value
-                auto oneSecondOut = iterations < 2? VehicleState(State(-1)) :
-                        iterations == 2? s.State : s.OneSecondOut;
+//                auto oneSecondOut = iterations < 2? VehicleState(State(-1)) :
+//                        iterations == 2? s.State : s.OneSecondOut;
+                auto oneSecondOut = iterations == 1? s.State : s.OneSecondOut;
                 MpcState nextMpcState{
                         next,
                         oneSecondOut,
@@ -779,13 +783,14 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
     auto start = getStateAfterCurrentControl();
 
     double r = 0, t = 0;
-    cerr << "Doing initial mpc..." << endl;
+//    cerr << "Doing initial mpc..." << endl;
     auto result = mpc4(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
-    cerr << "Finished initial mpc" << endl;
+//    cerr << "Finished initial mpc" << endl;
 
     // kick off the new MPC thread
-    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
-    mpcThread.detach();
+    // copies reference trajectory so we shouldn't have to deal with issues of a reference to a local variable going out of scope
+//    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
+//    mpcThread.detach();
 //    auto mpcFuture = std::async(std::launch::async, &Controller::runMpc, this,
 //            trajectory, start, result, trajectoryNumber);
 
@@ -845,12 +850,13 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
                 break;
             }
         }
-        mpc3(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime);
+        mpc3(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }
     if (m_ControlReceiver->getTime() >= endTime) {
         std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
     }
+    cerr << "Ending an old thread running MPC" << endl;
 }
 
 
