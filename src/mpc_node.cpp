@@ -6,9 +6,6 @@
 #include "marine_msgs/NavEulerStamped.h"
 #include <vector>
 #include "project11/gz4d_geo.h"
-#include "actionlib/server/simple_action_server.h"
-#include "path_planner/Trajectory.h"
-#include "mpc/EstimateState.h"
 #include "mpc/UpdateReferenceTrajectory.h"
 #include <fstream>
 #include <geometry_msgs/PoseStamped.h>
@@ -37,12 +34,10 @@ public:
         m_helm_pub = m_node_handle.advertise<marine_msgs::Helm>("/helm",1);
 
         m_controller_msgs_sub = m_node_handle.subscribe("/controller_msgs", 10, &MPCNode::controllerMsgsCallback, this);
-        m_reference_trajectory_sub = m_node_handle.subscribe("/reference_trajectory", 1, &MPCNode::referenceTrajectoryCallback, this);
         m_position_sub = m_node_handle.subscribe("/position_map", 10, &MPCNode::positionCallback, this);
         m_heading_sub = m_node_handle.subscribe("/heading", 10, &MPCNode::headingCallback, this);
         m_speed_sub = m_node_handle.subscribe("/sog", 10, &MPCNode::speedCallback, this);
 
-        m_estimate_state_service = m_node_handle.advertiseService("/mpc/estimate_state", &MPCNode::estimateStateInFuture, this);
         m_update_reference_trajectory_service = m_node_handle.advertiseService("/mpc/update_reference_trajectory", &MPCNode::updateReferenceTrajectory, this);
 
         m_Controller = new Controller(this);
@@ -71,31 +66,14 @@ public:
         std::string message = inmsg->data;
         std::cerr << "MPC node received message to: " << message << std::endl;
         if (message == "start running") {
-//            m_Controller->startRunning();
+            /* Deprecated */
         } else if (message == "start sending controls") {
-//            m_Controller->startSendingControls();
+            /* Deprecated */
         } else if (message == "terminate") {
             m_Controller->terminate();
         } else if (message == "stop sending controls") {
-            m_Controller->stopSendingControls();
-            TrajectoryDisplayer::displayTrajectory(std::vector<State>(), false);
+            /* Deprecated */
         }
-    }
-
-    /**
-     * Update the reference trajectory of the controller.
-     * @param inmsg the new reference trajectory.
-     */
-    void referenceTrajectoryCallback(const path_planner::Trajectory::ConstPtr &inmsg)
-    {
-//        std::cerr << "Controller received reference trajectory of length: " << std::endl;
-        std::vector<State> states;
-        for (const auto &s : inmsg->states) {
-            states.push_back(getState(s));
-        }
-//        std::cerr << states.size() << std::endl;
-//        m_TrajectoryNumber = inmsg->trajectoryNumber;
-        m_Controller->receiveRequest(states, inmsg->trajectoryNumber);
     }
 
     /**
@@ -132,8 +110,7 @@ public:
 
     void reconfigureCallback(mpc::mpcConfig &config, uint32_t level)
     {
-        m_Controller->updateConfig(config.mpc_type,
-                config.weight_slope, config.weight_start,
+        m_Controller->updateConfig(
                 config.rudders, config.throttles,
                 config.distance_weight, config.heading_weight, config.speed_weight);
     }
@@ -155,19 +132,6 @@ public:
     void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) final
     {
         TrajectoryDisplayer::displayTrajectory(trajectory, plannerTrajectory);
-    }
-
-    /**
-     * Handle a service call requesting an estimate of a state in the future.
-     * @param req the request (continaing a time)
-     * @param res the response (containing a State)
-     * @return whether the service call succeeded
-     */
-    bool estimateStateInFuture(mpc::EstimateState::Request &req, mpc::EstimateState::Response &res) {
-//        cerr << "Received service call " << endl;
-        auto s = m_Controller->estimateStateInFuture(req.desiredTime, res.trajectoryNumber);
-        res.state = getStateMsg(s);
-        return s.time != -1;
     }
 
     bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
@@ -192,12 +156,10 @@ private:
     ros::Publisher m_helm_pub;
 
     ros::Subscriber m_controller_msgs_sub;
-    ros::Subscriber m_reference_trajectory_sub;
     ros::Subscriber m_position_sub;
     ros::Subscriber m_heading_sub;
     ros::Subscriber m_speed_sub;
 
-    ros::ServiceServer m_estimate_state_service;
     ros::ServiceServer m_update_reference_trajectory_service;
 
     long m_TrajectoryNumber = 0;
