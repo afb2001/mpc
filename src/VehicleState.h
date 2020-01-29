@@ -9,7 +9,7 @@
  * Class representing a state of the vehicle beyond position, heading, speed and time. In this implementation that
  * extra information is just the rpm, but the class also holds the model constants.
  */
-class VehicleState : public State
+class VehicleState
 {
 public:
     /**
@@ -61,10 +61,24 @@ public:
         return state;
     }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "hicpp-explicit-conversions"
+    /**
+     * Intentional implicit conversion.
+     * A vehicle state is essentially a regular state so I'm doing this in lieu of polymorphism
+     * @return
+     */
+    operator State() const { // NOLINT(google-explicit-constructor)
+        return State;
+    }
+#pragma clang diagnostic pop
+
     /**
      * The RPMs at the state.
      */
     double rpm;
+
+    State State;
 
 private:
 
@@ -87,41 +101,41 @@ private:
     static constexpr double prop_coefficient = max_force / (max_prop_speed * max_prop_speed - max_speed * max_speed);
     static constexpr double drag_coefficient = max_force / (max_speed * max_speed * max_speed);
 
-    VehicleState estimate(VehicleState& state, double rudder, double throttle, double d_time,
-            double currentDirection, double currentSpeed) {
+    static VehicleState estimate(VehicleState& other, double rudder, double throttle, double d_time,
+                          double currentDirection, double currentSpeed) {
         double target_rpm = idle_rpm + throttle * (max_rpm - idle_rpm);
-        double rcr = (target_rpm - state.rpm) / d_time;
+        double rcr = (target_rpm - other.rpm) / d_time;
 
         if (rcr > max_rpm_change_rate) rcr = max_rpm_change_rate;
         else if (rcr < -max_rpm_change_rate) rcr = -max_rpm_change_rate;
 
-        state.rpm += rcr * d_time;
+        other.rpm += rcr * d_time;
 
-        double prop_rpm = prop_ratio * state.rpm;
+        double prop_rpm = prop_ratio * other.rpm;
         double prop_speed = prop_rpm / prop_pitch;
-        double rudder_speed = fmax(sqrt(prop_speed), state.speed);
-        double thrust = prop_coefficient * (prop_speed * prop_speed - state.speed * state.speed);
+        double rudder_speed = fmax(sqrt(prop_speed), other.State.speed);
+        double thrust = prop_coefficient * (prop_speed * prop_speed - other.State.speed * other.State.speed);
         double rudder_angle = rudder * max_rudder_angle;
         double thrust_fwd = thrust * cos(rudder_angle);
         double rudder_speed_yaw = rudder_speed * sin(rudder_angle);
         double yaw_rate = rudder_coefficient * rudder_speed_yaw / rudder_distance;
 
-        state.heading += yaw_rate * d_time;
-        state.heading = fmod(state.heading, M_PI * 2);
-        if (state.heading < 0)
-            state.heading += M_PI * 2;
+        other.State.heading += yaw_rate * d_time;
+        other.State.heading = fmod(other.State.heading, M_PI * 2);
+        if (other.State.heading < 0)
+            other.State.heading += M_PI * 2;
 
-        double drag = pow(state.speed, 3) * drag_coefficient;
-        state.speed += ((thrust_fwd - drag) / mass) * d_time;
-        double delta = state.speed * d_time;
+        double drag = pow(other.State.speed, 3) * drag_coefficient;
+        other.State.speed += ((thrust_fwd - drag) / mass) * d_time;
+        double delta = other.State.speed * d_time;
 
         auto deltaEV = currentSpeed * d_time;
 
-        state.x += delta * sin(state.heading) + deltaEV * sin(currentDirection);
-        state.y += delta * cos(state.heading) + deltaEV * cos(currentDirection);
+        other.State.x += delta * sin(other.State.heading) + deltaEV * sin(currentDirection);
+        other.State.y += delta * cos(other.State.heading) + deltaEV * cos(currentDirection);
 
-        state.time += d_time;
-        return state;
+        other.State.time += d_time;
+        return other;
     }
 
     /**
@@ -132,7 +146,7 @@ private:
      * @param estimatedCurrent estimate of the <x,y> effect of the current (in m/s)
      * @return the resulting state
      */
-    VehicleState estimate(VehicleState& state, double rudder, double throttle, double d_time, std::pair<double, double> estimatedCurrent) const {
+    static VehicleState estimate(VehicleState& state, double rudder, double throttle, double d_time, std::pair<double, double> estimatedCurrent) {
         double target_rpm = idle_rpm + throttle * (max_rpm - idle_rpm);
         double rcr = (target_rpm - state.rpm) / d_time;
 
@@ -143,26 +157,26 @@ private:
 
         double prop_rpm = prop_ratio * state.rpm;
         double prop_speed = prop_rpm / prop_pitch;
-        double rudder_speed = fmax(sqrt(prop_speed), state.speed);
-        double thrust = prop_coefficient * (prop_speed * prop_speed - state.speed * state.speed);
+        double rudder_speed = fmax(sqrt(prop_speed), state.State.speed);
+        double thrust = prop_coefficient * (prop_speed * prop_speed - state.State.speed * state.State.speed);
         double rudder_angle = rudder * max_rudder_angle;
         double thrust_fwd = thrust * cos(rudder_angle);
         double rudder_speed_yaw = rudder_speed * sin(rudder_angle);
         double yaw_rate = rudder_coefficient * rudder_speed_yaw / rudder_distance;
 
-        state.heading += yaw_rate * d_time;
-        state.heading = fmod(state.heading, M_PI * 2);
-        if (state.heading < 0)
-            state.heading += M_PI * 2;
+        state.State.heading += yaw_rate * d_time;
+        state.State.heading = fmod(state.State.heading, M_PI * 2);
+        if (state.State.heading < 0)
+            state.State.heading += M_PI * 2;
 
-        double drag = pow(state.speed, 3) * drag_coefficient;
-        state.speed += ((thrust_fwd - drag) / mass) * d_time;
-        double delta = state.speed * d_time;
+        double drag = pow(state.State.speed, 3) * drag_coefficient;
+        state.State.speed += ((thrust_fwd - drag) / mass) * d_time;
+        double delta = state.State.speed * d_time;
 
-        state.x += delta * sin(state.heading) + estimatedCurrent.first * d_time;
-        state.y += delta * cos(state.heading) + estimatedCurrent.second * d_time;
+        state.State.x += delta * sin(state.State.heading) + estimatedCurrent.first * d_time;
+        state.State.y += delta * cos(state.State.heading) + estimatedCurrent.second * d_time;
 
-        state.time += d_time;
+        state.State.time += d_time;
         return state;
     }
 };
