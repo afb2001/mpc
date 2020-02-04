@@ -22,16 +22,17 @@
 /**
  * ROS node which manages a model-predictive controller.
  */
-class MPCNode: public TrajectoryDisplayer, public ControlReceiver
+class MPCNode: public ControlReceiver
 {
 public:
     /**
      * Construct a MPCNode, setting up all the ROS publishers, subscribers and services, and initialize a Controller
      * instance.
      */
-    explicit MPCNode() : TrajectoryDisplayer()
+    explicit MPCNode()
     {
         m_helm_pub = m_node_handle.advertise<marine_msgs::Helm>("/helm",1);
+        m_display_pub = m_node_handle.advertise<geographic_visualization_msgs::GeoVizItem>("/project11/display",1);
 
         m_controller_msgs_sub = m_node_handle.subscribe("/controller_msgs", 10, &MPCNode::controllerMsgsCallback, this);
         m_position_sub = m_node_handle.subscribe("/position_map", 10, &MPCNode::positionCallback, this);
@@ -46,6 +47,8 @@ public:
         f = boost::bind(&MPCNode::reconfigureCallback, this, _1, _2);
 
         m_Dynamic_Reconfigure_Server.setCallback(f);
+
+        m_TrajectoryDisplayer = TrajectoryDisplayer(m_node_handle, &m_display_pub);
     }
 
     /**
@@ -131,7 +134,7 @@ public:
 
     void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) final
     {
-        TrajectoryDisplayer::displayTrajectory(trajectory, plannerTrajectory);
+        m_TrajectoryDisplayer.displayTrajectory(trajectory, plannerTrajectory);
     }
 
     bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
@@ -146,14 +149,31 @@ public:
     }
 
     double getTime() const override {
-        return TrajectoryDisplayer::getTime();
+        return m_TrajectoryDisplayer.getTime();
+    }
+
+    path_planner::StateMsg getStateMsg(const State& state) {
+        return m_TrajectoryDisplayer.getStateMsg(state);
+    }
+
+    State getState(const path_planner::StateMsg& stateMsg) {
+        return m_TrajectoryDisplayer.getState(stateMsg);
+    }
+
+    geographic_msgs::GeoPoint convertToLatLong(const State& state) {
+        return m_TrajectoryDisplayer.convertToLatLong(state);
     }
 
 private:
+    ros::NodeHandle m_node_handle;
+
+    TrajectoryDisplayer m_TrajectoryDisplayer;
+
     double m_current_speed = 0; // marginally better than having it initialized with junk
     double m_current_heading = 0;
 
     ros::Publisher m_helm_pub;
+    ros::Publisher m_display_pub;
 
     ros::Subscriber m_controller_msgs_sub;
     ros::Subscriber m_position_sub;
