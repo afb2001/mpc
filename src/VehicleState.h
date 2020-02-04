@@ -73,6 +73,10 @@ public:
     }
 #pragma clang diagnostic pop
 
+    std::string toString() const {
+        return state.toStringRad();
+    }
+
     /**
      * The RPMs at the state.
      */
