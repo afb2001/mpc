@@ -17,7 +17,7 @@ public:
      * @param state the underlying state
      */
     VehicleState(State state) : state(state) {
-        rpm = idle_rpm + (state.speed / max_speed) * (max_rpm - idle_rpm);
+        rpm = idle_rpm + (state.speed() / max_speed) * (max_rpm - idle_rpm);
     }
 
     VehicleState simulate(double rudder, double throttle, double t) {
@@ -35,14 +35,14 @@ public:
         else if (rudder > 1) rudder = 1;
         if (throttle < 0) throttle = 0;
         else if (throttle > 1) throttle = 1;
-        VehicleState state(*this);
-        predictedStates.push_back(state);
+        VehicleState vehicleState(*this);
+        predictedStates.push_back(vehicleState);
         while (t > 0) {
             double dTime = t < 0.1 ? t : 0.1;
             t -= 0.1;
-            predictedStates.push_back(estimate(state, rudder, throttle, dTime, estimatedCurrent));
+            predictedStates.push_back(estimate(vehicleState, rudder, throttle, dTime, estimatedCurrent));
         }
-        return state;
+        return vehicleState;
     }
 
     VehicleState simulate(double rudder, double throttle, double t, double currentDirection, double currentSpeed,
@@ -51,14 +51,14 @@ public:
         else if (rudder > 1) rudder = 1;
         if (throttle < 0) throttle = 0;
         else if (throttle > 1) throttle = 1;
-        VehicleState state(*this);
-        predictedStates.push_back(state);
+        VehicleState vehicleState(*this);
+        predictedStates.push_back(vehicleState);
         while (t > 0) {
             double dTime = t < 0.1 ? t : 0.1;
             t -= 0.1;
-            predictedStates.push_back(estimate(state, rudder, throttle, dTime, currentDirection, currentSpeed));
+            predictedStates.push_back(estimate(vehicleState, rudder, throttle, dTime, currentDirection, currentSpeed));
         }
-        return state;
+        return vehicleState;
     }
 
 #pragma clang diagnostic push
@@ -117,28 +117,28 @@ private:
 
         double prop_rpm = prop_ratio * vehicleState.rpm;
         double prop_speed = prop_rpm / prop_pitch;
-        double rudder_speed = fmax(sqrt(prop_speed), vehicleState.state.speed);
-        double thrust = prop_coefficient * (prop_speed * prop_speed - vehicleState.state.speed * vehicleState.state.speed);
+        double rudder_speed = fmax(sqrt(prop_speed), vehicleState.state.speed());
+        double thrust = prop_coefficient * (prop_speed * prop_speed - vehicleState.state.speed() * vehicleState.state.speed());
         double rudder_angle = rudder * max_rudder_angle;
         double thrust_fwd = thrust * cos(rudder_angle);
         double rudder_speed_yaw = rudder_speed * sin(rudder_angle);
         double yaw_rate = rudder_coefficient * rudder_speed_yaw / rudder_distance;
 
-        vehicleState.state.heading += yaw_rate * d_time;
-        vehicleState.state.heading = fmod(vehicleState.state.heading, M_PI * 2);
-        if (vehicleState.state.heading < 0)
-            vehicleState.state.heading += M_PI * 2;
+        vehicleState.state.heading() += yaw_rate * d_time;
+        vehicleState.state.heading() = fmod(vehicleState.state.heading(), M_PI * 2);
+        if (vehicleState.state.heading() < 0)
+            vehicleState.state.heading() += M_PI * 2;
 
-        double drag = pow(vehicleState.state.speed, 3) * drag_coefficient;
-        vehicleState.state.speed += ((thrust_fwd - drag) / mass) * d_time;
-        double delta = vehicleState.state.speed * d_time;
+        double drag = pow(vehicleState.state.speed(), 3) * drag_coefficient;
+        vehicleState.state.speed() += ((thrust_fwd - drag) / mass) * d_time;
+        double delta = vehicleState.state.speed() * d_time;
 
         auto deltaEV = currentSpeed * d_time;
 
-        vehicleState.state.x += delta * sin(vehicleState.state.heading) + deltaEV * sin(currentDirection);
-        vehicleState.state.y += delta * cos(vehicleState.state.heading) + deltaEV * cos(currentDirection);
+        vehicleState.state.x() += delta * sin(vehicleState.state.heading()) + deltaEV * sin(currentDirection);
+        vehicleState.state.y() += delta * cos(vehicleState.state.heading()) + deltaEV * cos(currentDirection);
 
-        vehicleState.state.time += d_time;
+        vehicleState.state.time() += d_time;
         return vehicleState;
     }
 
@@ -161,26 +161,26 @@ private:
 
         double prop_rpm = prop_ratio * vehicleState.rpm;
         double prop_speed = prop_rpm / prop_pitch;
-        double rudder_speed = fmax(sqrt(prop_speed), vehicleState.state.speed);
-        double thrust = prop_coefficient * (prop_speed * prop_speed - vehicleState.state.speed * vehicleState.state.speed);
+        double rudder_speed = fmax(sqrt(prop_speed), vehicleState.state.speed());
+        double thrust = prop_coefficient * (prop_speed * prop_speed - vehicleState.state.speed() * vehicleState.state.speed());
         double rudder_angle = rudder * max_rudder_angle;
         double thrust_fwd = thrust * cos(rudder_angle);
         double rudder_speed_yaw = rudder_speed * sin(rudder_angle);
         double yaw_rate = rudder_coefficient * rudder_speed_yaw / rudder_distance;
 
-        vehicleState.state.heading += yaw_rate * d_time;
-        vehicleState.state.heading = fmod(vehicleState.state.heading, M_PI * 2);
-        if (vehicleState.state.heading < 0)
-            vehicleState.state.heading += M_PI * 2;
+        vehicleState.state.heading() += yaw_rate * d_time;
+        vehicleState.state.heading() = fmod(vehicleState.state.heading(), M_PI * 2);
+        if (vehicleState.state.heading() < 0)
+            vehicleState.state.heading() += M_PI * 2;
 
-        double drag = pow(vehicleState.state.speed, 3) * drag_coefficient;
-        vehicleState.state.speed += ((thrust_fwd - drag) / mass) * d_time;
-        double delta = vehicleState.state.speed * d_time;
+        double drag = pow(vehicleState.state.speed(), 3) * drag_coefficient;
+        vehicleState.state.speed() += ((thrust_fwd - drag) / mass) * d_time;
+        double delta = vehicleState.state.speed() * d_time;
 
-        vehicleState.state.x += delta * sin(vehicleState.state.heading) + estimatedCurrent.first * d_time;
-        vehicleState.state.y += delta * cos(vehicleState.state.heading) + estimatedCurrent.second * d_time;
+        vehicleState.state.x() += delta * sin(vehicleState.state.heading()) + estimatedCurrent.first * d_time;
+        vehicleState.state.y() += delta * cos(vehicleState.state.heading()) + estimatedCurrent.second * d_time;
 
-        vehicleState.state.time += d_time;
+        vehicleState.state.time() += d_time;
         return vehicleState;
     }
 };

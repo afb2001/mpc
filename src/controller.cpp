@@ -67,7 +67,7 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
     int iterations = 1; // will go through loop once for start and then for each descendent before r and t are updated
     auto minScore = DBL_MAX;
     double bestCurrentRudder = 0, bestCurrentThrottle = 0;
-    State lastInterpolated(-1); // cache last interpolated state on reference trajectory
+    State lastInterpolated; // cache last interpolated state on reference trajectory
     while (m_ControlReceiver->getTime() < endTime) {
         // cut out when the reference trajectory is updated
         if (!validTrajectoryNumber(trajectoryNumber)) {
@@ -116,8 +116,8 @@ void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> 
 
         // If we're before the state given to the planner, full weight, otherwise 1/10th weight.
         double weight = 1.0; // s.State.time < referenceTrajectoryCopy[1].time ? 1.0 : 0.1;
-        if (lastInterpolated.time != s.State.state.time) {
-            lastInterpolated = interpolateTo(s.State.state.time, referenceTrajectoryCopy);
+        if (lastInterpolated.time() != s.State.state.time()) {
+            lastInterpolated = interpolateTo(s.State.state.time(), referenceTrajectoryCopy);
         }
         auto score = compareStates(lastInterpolated, s.State) * weight + s.PrevScore;
         if (s.Depth > 0) {
@@ -179,10 +179,10 @@ void Controller::updateConfig(int rudders, int throttles,
 
 double Controller::compareStates(const State& s1, const VehicleState& s2) const {
     // ignore differences in time
-    double headingDiff = fabs(fmod((s1.heading - s2.state.heading), 2 * M_PI));
-    auto speedDiff = fabs(s1.speed - s2.state.speed);
-    auto dx = s1.x - s2.state.x;
-    auto dy = s1.y - s2.state.y;
+    double headingDiff = fabs(fmod((s1.heading() - s2.state.heading()), 2 * M_PI));
+    auto speedDiff = fabs(s1.speed() - s2.state.speed());
+    auto dx = s1.x() - s2.state.x();
+    auto dy = s1.y() - s2.state.y();
     auto d = sqrt(dx * dx + dy * dy);
     return m_DistanceWeight * d + m_HeadingWeight * headingDiff * m_SpeedWeight * speedDiff;
 }
@@ -190,8 +190,8 @@ double Controller::compareStates(const State& s1, const VehicleState& s2) const 
 State Controller::interpolateTo(double desiredTime, const std::vector<State>& trajectory) {
     if (trajectory.size() < 2) throw std::logic_error("Cannot interpolate on a trajectory with fewer than 2 states");
     int i = 1;
-    for (; i < trajectory.size() && trajectory[i].time < desiredTime; i++) ;
-    if (trajectory[i].time < desiredTime) std::cerr << "Warning: extrapolating instead of interpolating" << std::endl;
+    for (; i < trajectory.size() && trajectory[i].time() < desiredTime; i++) ;
+    if (trajectory[i].time() < desiredTime) std::cerr << "Warning: extrapolating instead of interpolating" << std::endl;
     return trajectory[i - 1].interpolate(trajectory[i], desiredTime);
 }
 
@@ -233,7 +233,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, const std::vector<
     std::queue<MpcState> open; // "open" for open list
     MpcState startMpcState = {
             startCopy,
-            State(-1),
+            State(),
             NAN,
             NAN,
             m_LastRudder,
@@ -246,7 +246,7 @@ State Controller::mpc4(double& r, double& t, State startCopy, const std::vector<
     int iterations = 1; // will go through loop once for start and then for each descendent before r and t are updated
     auto minScore = DBL_MAX;
     double bestCurrentRudder = 0, bestCurrentThrottle = 0;
-    State lastInterpolated(-1); // cache last interpolated state on reference trajectory
+    State lastInterpolated; // cache last interpolated state on reference trajectory
     State result, intermediateResult; // state one second in the future
     while (m_ControlReceiver->getTime() < endTime) {
         assert(!open.empty());
@@ -291,9 +291,9 @@ State Controller::mpc4(double& r, double& t, State startCopy, const std::vector<
             fabs(maxThrottle - s.LastThrottle) > c_Tolerance) throttles.push_back(s.LastThrottle);
 
         // If we're before the state given to the planner, full weight, otherwise 1/10th weight.
-        double weight = 1.0; //s.State.time < referenceTrajectoryCopy[1].time ? 1.0 : 0.1;
-        if (lastInterpolated.time != s.State.state.time) {
-            lastInterpolated = interpolateTo(s.State.state.time, referenceTrajectoryCopy);
+        double weight = 1.0; //s.State.time() < referenceTrajectoryCopy[1].time() ? 1.0 : 0.1;
+        if (lastInterpolated.time() != s.State.state.time()) {
+            lastInterpolated = interpolateTo(s.State.state.time(), referenceTrajectoryCopy);
         }
         auto score = compareStates(lastInterpolated, s.State) * weight + s.PrevScore;
         assert(score >= 0 && "Score should be non-negative");
@@ -349,7 +349,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
         // Not long enough for MPC. Balk out.
         // NOTE: previous MPC thread may still be running; that can time out on its own
         std::cerr << "Reference trajectory of length " << trajectory.size() << " too short for MPC. Reference trajectory will not be updated." << std::endl;
-        return State(-1);
+        return State();
     }
     // new scope to use RAII
     {
@@ -401,12 +401,12 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
     // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
     int startIndex = -1, goalIndex = -1;
     for (int i = 0; i < trajectory.size(); i++) {
-        if (start.time >= trajectory[i].time) continue;
+        if (start.time() >= trajectory[i].time()) continue;
         else if (startIndex == -1){
             startIndex = i - 1;
             trajectory[startIndex] = start;
         }
-        if (result.time < trajectory[i].time && goalIndex == -1) {
+        if (result.time() < trajectory[i].time() && goalIndex == -1) {
             goalIndex = i - 1;
             trajectory[goalIndex] = result;
         }
@@ -418,7 +418,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
         if (!validTrajectoryNumber(trajectoryNumber)) break;
         auto stateAfterCurrentControl = getStateAfterCurrentControl();
         for (int i = startIndex; i < trajectory.size(); i++) {
-            if (stateAfterCurrentControl.state.time < trajectory[i].time) {
+            if (stateAfterCurrentControl.state.time() < trajectory[i].time()) {
                 if (i - 1 != goalIndex) { // don't overwrite the state we gave to the planner
                     startIndex = i - 1;
                     trajectory[startIndex] = stateAfterCurrentControl;

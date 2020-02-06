@@ -22,20 +22,20 @@ public:
      */
     void updateEstimate(const State &currentState, const std::vector<VehicleState>& predictedTrajectory) {
         if (estimatedCurrentVector.empty()) return;
-        if (previousTime != 0 && previousTime != currentState.time && predictedTrajectory.size() > 1) {
+        if (previousTime != 0 && previousTime != currentState.time() && predictedTrajectory.size() > 1) {
             int index = 1;
             for (; index < predictedTrajectory.size(); index++) {
-                if (currentState.time < predictedTrajectory[index].state.time) {
+                if (currentState.time() < predictedTrajectory[index].state.time()) {
                     break;
                 }
             }
-            if (predictedTrajectory[index].state.time <= 0) return; // if the states are invalid don't estimate current
+            if (predictedTrajectory[index].state.time() <= 0) return; // if the states are invalid don't estimate current
             auto old = estimatedCurrentVector[currentEstimateIteration];
             estimatedCurrent.first -= old.first / c_BufferSize;
             estimatedCurrent.second -= old.second / c_BufferSize;
-            auto interpolated = predictedTrajectory[index - 1].state.interpolate(predictedTrajectory[index], currentState.time);
-            old.first += (currentState.x -interpolated.x);
-            old.second += (currentState.y - interpolated.y);
+            auto interpolated = predictedTrajectory[index - 1].state.interpolate(predictedTrajectory[index], currentState.time());
+            old.first += (currentState.x() -interpolated.x());
+            old.second += (currentState.y() - interpolated.y());
             if (!(old.first == nan("") || old.second == nan(""))) {
                 estimatedCurrent.first += old.first / c_BufferSize;
                 estimatedCurrent.second += old.second / c_BufferSize;
@@ -50,7 +50,7 @@ public:
         if (estimatedCurrent.second < -5) estimatedCurrent.second = -5;
 
         // if the trajectory is empty still update the old time
-        previousTime = currentState.time;
+        previousTime = currentState.time();
     }
 
     /**
@@ -59,24 +59,24 @@ public:
      * @param future
      */
     void updateEstimate2(const State& startCopy, const std::vector<VehicleState>& future) {
-        if (ptime != startCopy.time && !future.empty()) {
+        if (ptime != startCopy.time() && !future.empty()) {
             if (iteration < 50)
                 ++iteration;
-            ptime = startCopy.time;
-            double cx = startCopy.x;
-            double cy = startCopy.y;
+            ptime = startCopy.time();
+            double cx = startCopy.x();
+            double cy = startCopy.y();
             int index = 0;
-            while (index < future.size() - 1 && future[index + 1].state.time < startCopy.time) index++;
+            while (index < future.size() - 1 && future[index + 1].state.time() < startCopy.time()) index++;
 //            for (int i = 1; i < future.size(); i++) {
-//                if (ptime <= future[i].time) {
-//                    index = (fabs(future[i].time - ptime) < fabs(future[i - 1].time - ptime)) ? i : i - 1;
+//                if (ptime <= future[i].time()) {
+//                    index = (fabs(future[i].time() - ptime) < fabs(future[i - 1].time() - ptime)) ? i : i - 1;
 //                    break;
 //                }
 //            }
-//            double dtime = future[index].time - (future[0].time - 0.05);
-            double dtime = future[index].state.time - startCopy.time;
-            double diffx = (startCopy.x - future[index].state.x) / dtime;
-            double diffy = (startCopy.y - future[index].state.y) / dtime;
+//            double dtime = future[index].time() - (future[0].time() - 0.05);
+            double dtime = future[index].state.time() - startCopy.time();
+            double diffx = (startCopy.x() - future[index].state.x()) / dtime;
+            double diffy = (startCopy.y() - future[index].state.y()) / dtime;
             double deltax = estimate_effect_speed * sin(estimate_effect_direction);
             double deltay = estimate_effect_speed * cos(estimate_effect_direction);
             deltax += diffx / iteration;

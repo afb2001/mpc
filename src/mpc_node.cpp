@@ -145,7 +145,7 @@ public:
         }
         auto s = m_Controller->updateReferenceTrajectory(states, m_TrajectoryNumber++);
         res.state = getStateMsg(s);
-        return s.time != -1;
+        return s.time() != -1;
     }
 
     double getTime() const override {
