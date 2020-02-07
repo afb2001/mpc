@@ -9,7 +9,7 @@ void OtherCurrentEstimator::initialize(const VehicleState& start) {
     // and set the average to zero
     m_EstimatedCurrent = std::make_pair(0.0, 0.0);
     // this is just for debugging
-    std::cerr << "Current estimator initialized with state " << start.toString() << std::endl;
+    std::cerr << "Current estimator initialized with state " << start.state.toString() << std::endl;
 }
 
 std::pair<double, double> OtherCurrentEstimator::getCurrent() const {
@@ -21,7 +21,7 @@ void OtherCurrentEstimator::update(const VehicleState& state) {
     if (m_States.empty() || m_EstimatedCurrentVector.empty()) return;
     // grab an old state we were in
     VehicleState old = m_States[currentEstimateIteration];
-    auto dTime = state.time - old.time;
+    auto dTime = state.state.time() - old.state.time();
     if (dTime <= 0) {
         std::cerr << "Can't update current estimate because starting state is newer than current state" << std::endl;
         return;
@@ -41,15 +41,15 @@ void OtherCurrentEstimator::update(const VehicleState& state) {
     m_States[currentEstimateIteration] = state;
     // simulate the old state using the controls we recorded up to the current time
     for (auto it = m_Controls.begin()++; it != m_Controls.end(); it++) {
-        if (it->time > state.time) break;
-        if (it->time < old.time) continue;
+        if (it->time > state.state.time()) break;
+        if (it->time < old.state.time()) continue;
         old = old.simulate(control.rudder, control.throttle, it->time - control.time);
         control = *it;
     }
-    old = old.simulate(control.rudder, control. throttle, state.time - control.time);
+    old = old.simulate(control.rudder, control. throttle, state.state.time() - control.time);
     // calculate the changes in x and y over time (m/s)
-    double dx = (state.x - old.x) / dTime;
-    double dy = (state.y - old.y) / dTime;
+    double dx = (state.state.x() - old.state.x()) / dTime;
+    double dy = (state.state.y() - old.state.y()) / dTime;
     // grab the old estimate that's in the slot
     auto oldEstimate = m_EstimatedCurrentVector[currentEstimateIteration];
     std::cerr << "Updating old current estimate of " << oldEstimate.first << ", " << oldEstimate.second

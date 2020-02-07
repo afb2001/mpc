@@ -1,17 +1,13 @@
 #ifndef SRC_CONTROLLER_H
 #define SRC_CONTROLLER_H
 
-/**
- * This is the maximum length of reference trajectory allowed. Longer trajectories will be truncated.
- */
-#define MAX_LOOKAHEAD_STEPS 20
-
 #include "control_receiver.h"
 #include "path_planner/State.h"
 #include "VehicleState.h"
 #include "current_estimator.h"
 #include "OtherCurrentEstimator.h"
 #include <mutex>
+#include <future>
 #include <random>
 #include "path_planner/Trajectory.h"
 #include "path_planner/TrajectoryDisplayer.h"
@@ -38,10 +34,13 @@ public:
     ~Controller();
 
     /**
-     * Update the reference trajectory.
-     * @param trajectory new reference trajectory
+     * Respond to the new service call that supplies a new reference trajectory and expects an estimated state 1s in
+     * the future. Starts a new thread to do MPC until the trajectory number is updated again.
+     * @param trajectory
+     * @param trajectoryNumber
+     * @return a state 1 second in the future
      */
-    void receiveRequest(const std::vector<State>& trajectory, long trajectoryNumber);
+    State updateReferenceTrajectory(const std::vector<State>& trajectory, long trajectoryNumber);
 
     /**
      * Update the controller's idea of the current state of the vehicle.
@@ -50,58 +49,38 @@ public:
     void updatePosition(State state);
 
     /**
-     * Starts a thread for doing MPC and issuing controls.
-     */
-    void startRunning();
-
-    /**
-     * Tell the MPC thread to stop running. This should be done when the controller will no longer be used.
+     * Tell the MPC thread to stop running. This should be done when the controller should no longer control the boat.
      *
      */
     void terminate();
-
-    /**
-     * Set the plan flag. This lets the controller issue controls.
-     * It should mean the reference trajectory is being updated.
-     */
-    void startSendingControls();
-
-    /**
-     * Clear than plan flag, stopping the controller from issuing controls.
-     * Do this when the reference trajectory is no longer being updated.
-     */
-    void stopSendingControls();
 
     /**
      * Do approximate MPC by scoring potential trajectories starting from startCopy based on the
      * reference trajectory until the current time reaches endTime. The best initial rudder and
      * throttle are assigned to r and t.
      *
-     * Over time this function increases first the number of states in the reference trajectory it
-     * scores against and then the granularity at which controls are generated. In the lookahead-increasing
-     * phase at each iteration an additional state on the trajectory is considered. That phase ends when
-     * MAX_LOOKAHEAD_DEPTH is reached, and the control-granularity-increasing phase begins. Note that
-     * no interpolation is done between states on the reference trajectory, so the granularity of the
-     * trajectory provided will not be altered. Please provide appropriate trajectories.
+     * This version of MPC uses limited branching piecewise constant controls to simulate potential trajectories.
      *
-     * @param r resulting rudder
-     * @param t resulting throttle
-     * @param startCopy starting point
-     * @param referenceTrajectoryCopy reference trajectory
-     * @param endTime end time
+     * @param r
+     * @param t
+     * @param startCopy
+     * @param referenceTrajectoryCopy
+     * @param endTime
+     * @param trajectoryNumber
      */
-    void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
+    void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
 
     /**
-     * MPC but only one control out to the end of the trajectory.
-     * Assumes reference trajectory is appropriately spaced. Interpolate reference trajectory beforehand if desired.
-     * @param r resulting rudder
-     * @param t resulting throttle
-     * @param startCopy starting point
-     * @param referenceTrajectoryCopy reference trajectory
-     * @param endTime end time
+     * Same as mpc but returns the state expected to be in 1s in the future
+     * @param r
+     * @param t
+     * @param startCopy
+     * @param referenceTrajectoryCopy
+     * @param endTime
+     * @param trajectoryNumber
+     * @return
      */
-    void straightMpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber = 0);
+    State initialMpc(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy, double endTime);
 
     /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
@@ -110,88 +89,93 @@ public:
     static double getTime();
 
     /**
-     * Estimate where we will be at the specified time according to the most recent projected trajectory.
-     * @param desiredTime the desired time (must be in the future)
-     * @return an estimate of the state we'll be in at desiredTime
-     */
-    State estimateStateInFuture(double desiredTime);
-    State estimateStateInFuture(double desiredTime, long& trajectoryNumber);
-
-    /**
      * Update the configuration of the controller.
-     * @param useBranching
-     * @param weightSlope
-     * @param weightStart
      * @param rudders
      * @param throttles
      * @param distanceWeight
      * @param headingWeight
      * @param speedWeight
      */
-    void updateConfig(int useBranching, double weightSlope, double weightStart, int rudders, int throttles,
-                      double distanceWeight, double headingWeight, double speedWeight);
+    void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight);
+
+    /**
+     * Set the trajectory number. Only public for testing.
+     * @param trajectoryNumber
+     */
+    void setTrajectoryNumber(long trajectoryNumber);
 
 private:
 
-    /**
-     * This class lets me have a stream of controls to iterate through without having to
-     * explicitly do the math where they're used.
-     * No documentation is provided because it's really just internal and self-explanatory.
-     */
-    class Control
-    {
-    public:
-        Control() : Control(10, 10) {};
-        Control(int rb, int tb) { m_RudderBase = rb; m_ThrottleBase = tb; m_RudderCounter = -rb; m_ThrottleCounter = tb; }
-        double incrementRudder() { m_RudderCounter++; return m_RudderCounter / m_RudderBase; }
-        double incrementThrottle() { m_ThrottleCounter--; return m_ThrottleCounter / m_ThrottleBase; }
-        void resetRudder() { m_RudderCounter = -(int)m_RudderBase; }
-        void resetThrottle() { m_ThrottleCounter = (int)m_ThrottleBase; }
-        bool rudderDone() { return m_RudderCounter > m_RudderBase; }
-        bool throttleDone() { return m_ThrottleCounter < 0; }
-        double getRudder() { return m_RudderCounter / m_RudderBase; }
-        double getThrottle() { return m_ThrottleCounter / m_ThrottleBase; }
-    private:
-        double m_RudderBase, m_ThrottleBase;
-        int m_RudderCounter, m_ThrottleCounter;
-    };
-
     ControlReceiver* m_ControlReceiver;
 
+    std::future<void> m_LastMpc;
+
     // configuration
-    bool m_UseBranching;
-    double m_WeightSlope, m_WeightStart;
-    int m_Rudders, m_Throttles;
-    double m_DistanceWeight, m_HeadingWeight, m_SpeedWeight;
+    int m_Rudders = 21, m_Throttles = 5;
+    double m_DistanceWeight{}, m_HeadingWeight{}, m_SpeedWeight{};
 
-    std::mutex mtx;
-    bool running = false;
-    bool plan = false;
+    std::mutex m_CurrentLocationMutex;
     State m_CurrentLocation;
-    std::vector<State> m_ReferenceTrajectory;
-
-    std::mutex m_FutureStuffMutex;
-    std::vector<std::pair<double,double>> m_FutureControls;
-    std::vector<VehicleState> m_PredictedTrajectory;
 
     CurrentEstimator m_CurrentEstimator;
 //    OtherCurrentEstimator m_CurrentEstimator;
 
     long m_TrajectoryNumber = 0;
-    long m_NextTrajectoryNumber = 0;
     std::mutex m_TrajectoryNumberMutex;
 
-    /**
-     * Get the score weight for a state along the reference trajectory at the given index
-     * @param index index of the state on the reference trajectory
-     * @return a weight for the score
-     */
-    static double getMPCWeight(int index);
-    double getMPCWeight(double timeFromStart) const;
+    double m_LastRudder = 0, m_LastThrottle = 0; // should replace with some kind of collection with time stamps
 
     double compareStates(const State& s1, const VehicleState& s2) const;
+    double compareStates(const State& s1, const State& s2) const;
 
-    void sendAction();
+    bool validTrajectoryNumber(long trajectoryNumber);
+
+    VehicleState getStateAfterCurrentControl();
+
+    void sendControls(double r, double t);
+
+    /**
+     * Run MPC until the trajectory gets updated (tested through the trajectory number) or the current trajectory times
+     * out. This is designed to be run in a new thread.
+     * @param trajectory
+     * @param start
+     * @param result
+     * @param trajectoryNumber
+     */
+    void runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber);
+
+    // Constants
+    /**
+     * Time interval for scoring against the trajectory (seconds).
+     */
+    static constexpr double c_ScoringTimeStep = 1;
+    /**
+     * Tolerance used to circumvent some rounding errors. Pretty arbitrary.
+     */
+    static constexpr double c_Tolerance = 1.0e-5;
+    /**
+     * Time (seconds) for controller to think between issuing controls.
+     */
+    static constexpr double c_PlanningTime = 0.1;
+    /**
+     * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
+     * are received.
+     */
+    static constexpr double c_ReferenceTrajectoryExpirationTime = 5;
+
+    /**
+     * Threshold below which the controller will tell the executive to simply assume the reference trajectory is
+     * achievable. Should really be tuned with data somehow.
+     */
+    static constexpr double c_CloseEnoughScoreThreshold = 1;
+
+    /**
+     * Interpolate along the given trajectory to the desired time.
+     * @param desiredTime
+     * @param trajectory
+     * @return the interpolated state
+     */
+    static State interpolateTo(double desiredTime, const std::vector<State>& trajectory);
 };
 
 

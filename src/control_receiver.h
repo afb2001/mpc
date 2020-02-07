@@ -1,6 +1,6 @@
 #include <path_planner/State.h>
 
-#ifndef SRC_TRAJECTORY_PUBLISHER_H
+#ifndef SRC_CONTROL_RECEIVER_H
 #define SRC_CONTROL_RECEIVER_H
 
 /**
@@ -16,6 +16,12 @@ public:
      * @param throttle a throttle command in the interval [0, 1]
      */
     virtual void receiveControl(double rudder, double throttle) = 0;
+
+    /**
+     * Display a predicted trajectory. This may not be used any more.
+     * @param trajectory
+     * @param plannerTrajectory
+     */
     virtual void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) = 0;
 
     /**
@@ -26,4 +32,4 @@ public:
 };
 
 
-#endif //SRC_TRAJECTORY_PUBLISHER_H
+#endif //SRC_CONTROL_RECEIVER_H
