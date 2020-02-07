@@ -132,11 +132,23 @@ public:
         m_helm_pub.publish(helm);
     }
 
+    /**
+     * Display a predicted trajectory to /project11/display.
+     * @param trajectory
+     * @param plannerTrajectory
+     */
     void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) final
     {
         m_TrajectoryDisplayer.displayTrajectory(trajectory, plannerTrajectory);
     }
 
+    /**
+     * Fulful the service by calling MPC once and returning a state 1s into the future. The controller's reference
+     * trajectory is updated (obviously) and MPC is set to run for some time.
+     * @param req
+     * @param res
+     * @return
+     */
     bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
         std::cerr << "Controller received reference trajectory of length: " << std::endl;
         std::vector<State> states;
@@ -148,6 +160,9 @@ public:
         return s.time() != -1;
     }
 
+    /**
+     * @return the current time in seconds
+     */
     double getTime() const override {
         return m_TrajectoryDisplayer.getTime();
     }

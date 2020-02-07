@@ -32,7 +32,7 @@ TEST(ControllerUnitTests, goNowhere3)
     reference.emplace_back(0,0,0,0,8);
     reference.emplace_back(0,0,0,0,9);
     double r, t;
-    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.25, 1);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25, 1);
 //    EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 0.0);
 }
@@ -47,7 +47,7 @@ TEST(ControllerUnitTests, goNorth3)
     double r, t;
     reference.emplace_back(0,0.02,0,0.1,Controller::getTime() + 1);
     reference.emplace_back(0,3.5,0,2,Controller::getTime() + 2);
-    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.05, 1);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.05, 1);
     EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
@@ -62,7 +62,7 @@ TEST(ControllerUnitTests, goEast3)
     double r, t;
     reference.emplace_back(1,0,M_PI/2,2.5,Controller::getTime() + 1);
     reference.emplace_back(3.5,0,M_PI/2,2.5,Controller::getTime() + 2);
-    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.25, 1);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25, 1);
     EXPECT_DOUBLE_EQ(r, 1);
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
@@ -77,7 +77,7 @@ TEST(ControllerUnitTests, goWest3)
     double r, t;
     reference.emplace_back(-1,0,-M_PI/2,2.5,Controller::getTime() + 1);
     reference.emplace_back(-3.5,0,-M_PI/2,2.5,Controller::getTime() + 2);
-    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.25, 1);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.25, 1);
     EXPECT_DOUBLE_EQ(r, -1);
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
@@ -95,7 +95,7 @@ TEST(ControllerUnitTests, realStateTest3)
     reference.push_back(start);
     reference.push_back(s1);
     reference.push_back(s2);
-    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.1, 1);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.1, 1);
     EXPECT_NEAR(r,-0.2, 0.001);
     EXPECT_NEAR(t, 1, 0.001);
 }
@@ -131,7 +131,7 @@ TEST(ControllerUnitTests, turnAroundTest3)
     reference.emplace_back(0, -6, M_PI, 2, 10);
     reference.emplace_back(0, -8, M_PI, 2, 11);
     reference.emplace_back(0, -10, M_PI, 2, 12);
-    controller.mpc3(r, t, start, reference, Controller::getTime() + 0.1, 1);
+    controller.mpc(r, t, start, reference, Controller::getTime() + 0.1, 1);
     EXPECT_DOUBLE_EQ(fabs(r), 1);
     EXPECT_LT(t, 0.3);
 }

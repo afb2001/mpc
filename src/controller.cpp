@@ -20,7 +20,7 @@ double Controller::getTime()
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
-void Controller::mpc3(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber)
+void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber)
 {
     // TODO! -- write a similar method to do MPC the first time when we need to find a state 1s in the future
     // also write something to kick this off in a new thread for a few iterations (see notes)
@@ -200,8 +200,8 @@ bool Controller::validTrajectoryNumber(long trajectoryNumber) {
     return trajectoryNumber == m_TrajectoryNumber;
 }
 
-State Controller::mpc4(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy,
-                       double endTime) {
+State Controller::initialMpc(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy,
+                             double endTime) {
 
     static_assert(c_ScoringTimeStep == 1, "This method makes an assumption about the scoring time step");
 
@@ -362,7 +362,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 
     double r = 0, t = 0;
 //    cerr << "Doing initial mpc..." << endl;
-    auto result = mpc4(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
+    auto result = initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
 //    cerr << "Finished initial mpc" << endl;
 
     sendControls(r, t);
@@ -426,7 +426,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
                 break;
             }
         }
-        mpc3(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime, trajectoryNumber);
+        mpc(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }
     if (m_ControlReceiver->getTime() >= endTime) {

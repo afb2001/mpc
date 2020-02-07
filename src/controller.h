@@ -67,10 +67,10 @@ public:
      * @param endTime
      * @param trajectoryNumber
      */
-    void mpc3(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+    void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+
     /**
-     * (for lack of a better name)
-     * Same as mpc3 but returns the state expected to be in 1s in the future
+     * Same as mpc but returns the state expected to be in 1s in the future
      * @param r
      * @param t
      * @param startCopy
@@ -79,7 +79,7 @@ public:
      * @param trajectoryNumber
      * @return
      */
-    State mpc4(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy, double endTime);
+    State initialMpc(double& r, double& t, State startCopy, const std::vector<State>& referenceTrajectoryCopy, double endTime);
 
     /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
@@ -124,6 +124,14 @@ private:
 
     void sendControls(double r, double t);
 
+    /**
+     * Run MPC until the trajectory gets updated (tested through the trajectory number) or the current trajectory times
+     * out. This is designed to be run in a new thread.
+     * @param trajectory
+     * @param start
+     * @param result
+     * @param trajectoryNumber
+     */
     void runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber);
 
     // Constants
