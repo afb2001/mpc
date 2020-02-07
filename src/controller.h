@@ -126,6 +126,7 @@ private:
     double m_LastRudder = 0, m_LastThrottle = 0; // should replace with some kind of collection with time stamps
 
     double compareStates(const State& s1, const VehicleState& s2) const;
+    double compareStates(const State& s1, const State& s2) const;
 
     bool validTrajectoryNumber(long trajectoryNumber);
 
@@ -161,6 +162,12 @@ private:
      * are received.
      */
     static constexpr double c_ReferenceTrajectoryExpirationTime = 5;
+
+    /**
+     * Threshold below which the controller will tell the executive to simply assume the reference trajectory is
+     * achievable. Should really be tuned with data somehow.
+     */
+    static constexpr double c_CloseEnoughScoreThreshold = 1;
 
     /**
      * Interpolate along the given trajectory to the desired time.

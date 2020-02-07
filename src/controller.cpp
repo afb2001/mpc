@@ -180,13 +180,7 @@ void Controller::updateConfig(int rudders, int throttles,
 }
 
 double Controller::compareStates(const State& s1, const VehicleState& s2) const {
-    // ignore differences in time
-    double headingDiff = fabs(fmod((s1.heading() - s2.state.heading()), 2 * M_PI));
-    auto speedDiff = fabs(s1.speed() - s2.state.speed());
-    auto dx = s1.x() - s2.state.x();
-    auto dy = s1.y() - s2.state.y();
-    auto d = sqrt(dx * dx + dy * dy);
-    return m_DistanceWeight * d + m_HeadingWeight * headingDiff * m_SpeedWeight * speedDiff;
+    return compareStates(s1, s2.state);
 }
 
 State Controller::interpolateTo(double desiredTime, const std::vector<State>& trajectory) {
@@ -389,6 +383,16 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 //    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
 //    mpcThread.detach();
 
+    auto interpolated = interpolateTo(result.time(), trajectory);
+    auto score = compareStates(result, interpolated);
+    if (score <= c_CloseEnoughScoreThreshold) {
+        result = interpolated;
+//        result.time() = -2; // invalid time meaning we're close enough
+//        std::cerr << "Controller deems us close enough (score = " << score << ")" << std::endl;
+    } else {
+        std::cerr << "Controller doesn't think we can make the reference trajectory (score = " << score << ")" << std::endl;
+    }
+
     return result;
 }
 
@@ -457,6 +461,16 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
         std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
     }
 //    cerr << "Ending an old thread running MPC" << endl;
+}
+
+double Controller::compareStates(const State& s1, const State& s2) const {
+    // ignore differences in time
+    double headingDiff = fabs(fmod((s1.heading() - s2.heading()), 2 * M_PI));
+    auto speedDiff = fabs(s1.speed() - s2.speed());
+    auto dx = s1.x() - s2.x();
+    auto dy = s1.y() - s2.y();
+    auto d = sqrt(dx * dx + dy * dy);
+    return m_DistanceWeight * d + m_HeadingWeight * headingDiff * m_SpeedWeight * speedDiff;
 }
 
 
