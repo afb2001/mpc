@@ -9,6 +9,8 @@ using namespace std;
 
 Controller::Controller(ControlReceiver *controlReceiver) {
     m_ControlReceiver = controlReceiver;
+    // load it up with an empty future
+    m_LastMpc = std::async(std::launch::async, []{});
 }
 
 Controller::~Controller() = default;
@@ -31,7 +33,7 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     // TODO! -- acquire current estimate from updated estimator
     std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
 
-//    cerr << "Starting MPC (3)" << endl;
+    cerr << "Starting MPC (3)" << endl;
     assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
 
 
@@ -71,7 +73,7 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     while (m_ControlReceiver->getTime() < endTime) {
         // cut out when the reference trajectory is updated
         if (!validTrajectoryNumber(trajectoryNumber)) {
-//            cerr << "Trajectory number " << trajectoryNumber << " not valid." << endl;
+            cerr << "Trajectory number " << trajectoryNumber << " not valid." << endl;
             return;
         }
         assert(!open.empty());
@@ -352,11 +354,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
         return State();
     }
     // new scope to use RAII
-    {
-        std::unique_lock<mutex> lock(m_TrajectoryNumberMutex);
-        // updating the trajectory number stops the previous MPC thread
-        m_TrajectoryNumber = trajectoryNumber;
-    }
+    setTrajectoryNumber(trajectoryNumber);
 
     auto start = getStateAfterCurrentControl();
 
@@ -367,12 +365,36 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 
     sendControls(r, t);
 
+    // join the last thread used for MPC
+    // should be able to wait for no time at all but I'll give it some leeway for now
+    auto status = m_LastMpc.wait_for(std::chrono::milliseconds((int)(1000 * c_PlanningTime)));
+    switch (status) {
+        case std::future_status::ready:
+            m_LastMpc.get(); // not sure this is necessary
+            cerr << "Got last iteration's future" << endl;
+            break;
+        case std::future_status::timeout:
+            // bad
+            throw std::runtime_error("Old MPC thread refused to die");
+            break;
+        default:
+            // shouldn't ever get here
+            std::cerr << "Shouldn't ever get here" << std::endl;
+            break;
+    }
     // kick off the new MPC thread
     // copies reference trajectory so we shouldn't have to deal with issues of a reference to a local variable going out of scope
-    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
-    mpcThread.detach();
+    m_LastMpc = std::async(std::launch::async, [=]{ runMpc(trajectory, start, result, trajectoryNumber); });
+//    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
+//    mpcThread.detach();
 
     return result;
+}
+
+void Controller::setTrajectoryNumber(long trajectoryNumber) {
+    unique_lock<mutex> lock(m_TrajectoryNumberMutex);
+    // updating the trajectory number stops the previous MPC thread
+    m_TrajectoryNumber = trajectoryNumber;
 }
 
 VehicleState Controller::getStateAfterCurrentControl() {
@@ -391,6 +413,7 @@ VehicleState Controller::getStateAfterCurrentControl() {
 
 void Controller::sendControls(double r, double t) {
     // TODO! -- concurrency safety?
+    cerr << "Sending controls " << r << ", " << t << endl;
     m_LastRudder = r;
     m_LastThrottle = t;
     m_ControlReceiver->receiveControl(r, t);
@@ -426,7 +449,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
                 break;
             }
         }
-        mpc(r, t, stateAfterCurrentControl, trajectory, getTime() + c_PlanningTime, trajectoryNumber);
+        mpc(r, t, stateAfterCurrentControl, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }
     if (m_ControlReceiver->getTime() >= endTime) {

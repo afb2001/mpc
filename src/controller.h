@@ -7,6 +7,7 @@
 #include "current_estimator.h"
 #include "OtherCurrentEstimator.h"
 #include <mutex>
+#include <future>
 #include <random>
 #include "path_planner/Trajectory.h"
 #include "path_planner/TrajectoryDisplayer.h"
@@ -97,9 +98,17 @@ public:
      */
     void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight);
 
+    /**
+     * Set the trajectory number. Only public for testing.
+     * @param trajectoryNumber
+     */
+    void setTrajectoryNumber(long trajectoryNumber);
+
 private:
 
     ControlReceiver* m_ControlReceiver;
+
+    std::future<void> m_LastMpc;
 
     // configuration
     int m_Rudders = 21, m_Throttles = 5;

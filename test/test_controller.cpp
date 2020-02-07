@@ -32,6 +32,7 @@ TEST(ControllerUnitTests, goNowhere3)
     reference.emplace_back(0,0,0,0,8);
     reference.emplace_back(0,0,0,0,9);
     double r, t;
+    controller.setTrajectoryNumber(1);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.25, 1);
 //    EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 0.0);
@@ -47,6 +48,7 @@ TEST(ControllerUnitTests, goNorth3)
     double r, t;
     reference.emplace_back(0,0.02,0,0.1,Controller::getTime() + 1);
     reference.emplace_back(0,3.5,0,2,Controller::getTime() + 2);
+    controller.setTrajectoryNumber(1);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.05, 1);
     EXPECT_DOUBLE_EQ(r, 0.0);
     EXPECT_DOUBLE_EQ(t, 1.0);
@@ -62,6 +64,7 @@ TEST(ControllerUnitTests, goEast3)
     double r, t;
     reference.emplace_back(1,0,M_PI/2,2.5,Controller::getTime() + 1);
     reference.emplace_back(3.5,0,M_PI/2,2.5,Controller::getTime() + 2);
+    controller.setTrajectoryNumber(1);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.25, 1);
     EXPECT_DOUBLE_EQ(r, 1);
     EXPECT_DOUBLE_EQ(t, 1.0);
@@ -77,6 +80,7 @@ TEST(ControllerUnitTests, goWest3)
     double r, t;
     reference.emplace_back(-1,0,-M_PI/2,2.5,Controller::getTime() + 1);
     reference.emplace_back(-3.5,0,-M_PI/2,2.5,Controller::getTime() + 2);
+    controller.setTrajectoryNumber(1);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.25, 1);
     EXPECT_DOUBLE_EQ(r, -1);
     EXPECT_DOUBLE_EQ(t, 1.0);
@@ -95,6 +99,7 @@ TEST(ControllerUnitTests, realStateTest3)
     reference.push_back(start);
     reference.push_back(s1);
     reference.push_back(s2);
+    controller.setTrajectoryNumber(1);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.1, 1);
     EXPECT_NEAR(r,-0.2, 0.001);
     EXPECT_NEAR(t, 1, 0.001);
@@ -131,6 +136,7 @@ TEST(ControllerUnitTests, turnAroundTest3)
     reference.emplace_back(0, -6, M_PI, 2, 10);
     reference.emplace_back(0, -8, M_PI, 2, 11);
     reference.emplace_back(0, -10, M_PI, 2, 12);
+    controller.setTrajectoryNumber(1);
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.1, 1);
     EXPECT_DOUBLE_EQ(fabs(r), 1);
     EXPECT_LT(t, 0.3);
@@ -200,11 +206,11 @@ TEST(VehicleStateTests, estimateTest0)
     VehicleState s1(State(0,0,2,2.3,7));
     auto s2 = s1.simulate(0, 1, 3, pair<double,double>(0,0));
     auto s3 = s1.simulate(0, 1, 3, pair<double,double>(0,0));
-    EXPECT_DOUBLE_EQ(s2.state.time, s3.state.time);
-    EXPECT_DOUBLE_EQ(s2.state.x, s3.state.x);
-    EXPECT_DOUBLE_EQ(s2.state.y, s3.state.y);
-    EXPECT_DOUBLE_EQ(s2.state.heading, s3.state.heading);
-    EXPECT_DOUBLE_EQ(s2.state.speed, s3.state.speed);
+    EXPECT_DOUBLE_EQ(s2.state.time(), s3.state.time());
+    EXPECT_DOUBLE_EQ(s2.state.x(), s3.state.x());
+    EXPECT_DOUBLE_EQ(s2.state.y(), s3.state.y());
+    EXPECT_DOUBLE_EQ(s2.state.heading(), s3.state.heading());
+    EXPECT_DOUBLE_EQ(s2.state.speed(), s3.state.speed());
 }
 
 TEST(VehicleStateTests, estimateTest1)
@@ -213,11 +219,11 @@ TEST(VehicleStateTests, estimateTest1)
     auto sFinal = s1.simulate(0, 1, 5, pair<double,double>(0,0));
     auto s2 = s1.simulate(0, 1, 2, pair<double,double>(0,0));
     auto s3 = s2.simulate(0, 1, 3, pair<double,double>(0,0));
-    EXPECT_DOUBLE_EQ(sFinal.state.time, s3.state.time);
-    EXPECT_DOUBLE_EQ(sFinal.state.x, s3.state.x);
-    EXPECT_DOUBLE_EQ(sFinal.state.y, s3.state.y);
-    EXPECT_DOUBLE_EQ(sFinal.state.heading, s3.state.heading);
-    EXPECT_DOUBLE_EQ(sFinal.state.speed, s3.state.speed);
+    EXPECT_DOUBLE_EQ(sFinal.state.time(), s3.state.time());
+    EXPECT_DOUBLE_EQ(sFinal.state.x(), s3.state.x());
+    EXPECT_DOUBLE_EQ(sFinal.state.y(), s3.state.y());
+    EXPECT_DOUBLE_EQ(sFinal.state.heading(), s3.state.heading());
+    EXPECT_DOUBLE_EQ(sFinal.state.speed(), s3.state.speed());
 }
 
 TEST(VehicleStateTests, estimateTest2)
@@ -227,11 +233,11 @@ TEST(VehicleStateTests, estimateTest2)
     auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0));
     auto s2 = s1.simulate(0.8, 1, 0.25, pair<double,double>(0,0));
     auto s3 = start.simulate(0.8, 1, 1, pair<double,double>(0,0));
-    EXPECT_NEAR(s2.state.time, s3.state.time, 1e-3);
-    EXPECT_NEAR(s2.state.x, s3.state.x, 1e-3);
-    EXPECT_NEAR(s2.state.y, s3.state.y, 1e-3);
-    EXPECT_NEAR(s2.state.heading, s3.state.heading, 1e-3);
-    EXPECT_NEAR(s2.state.speed, s3.state.speed, 1e-3);
+    EXPECT_NEAR(s2.state.time(), s3.state.time(), 1e-3);
+    EXPECT_NEAR(s2.state.x(), s3.state.x(), 1e-3);
+    EXPECT_NEAR(s2.state.y(), s3.state.y(), 1e-3);
+    EXPECT_NEAR(s2.state.heading(), s3.state.heading(), 1e-3);
+    EXPECT_NEAR(s2.state.speed(), s3.state.speed(), 1e-3);
 }
 
 //TEST(VehicleStateTests, specificEstimateTest1) {
@@ -289,7 +295,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
         referenceTrajectory.push_back(s);
     }
     auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
-    EXPECT_NE(result.time, -1);
+    EXPECT_NE(result.time(), -1);
     cerr << result.toString() << endl;
     for (int i = 0; i < 20; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -298,7 +304,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
         cerr << start.toString() << endl;
     }
     result = controller.updateReferenceTrajectory(referenceTrajectory, 1);
-    EXPECT_NE(result.time, -1);
+    EXPECT_NE(result.time(), -1);
     cerr << result.toString() << endl;
     for (int i = 0; i < 110; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
