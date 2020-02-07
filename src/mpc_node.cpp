@@ -150,7 +150,7 @@ public:
      * @return
      */
     bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
-        std::cerr << "Controller received reference trajectory of length: " << std::endl;
+//        std::cerr << "Controller received reference trajectory of length: " << req.trajectory.states.size() << std::endl;
         std::vector<State> states;
         for (const auto &s : req.trajectory.states) {
             states.push_back(getState(s));

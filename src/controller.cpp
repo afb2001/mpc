@@ -33,7 +33,7 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     // TODO! -- acquire current estimate from updated estimator
     std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
 
-    cerr << "Starting MPC (3)" << endl;
+//    cerr << "Starting MPC (3)" << endl;
     assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
 
 
@@ -73,7 +73,7 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     while (m_ControlReceiver->getTime() < endTime) {
         // cut out when the reference trajectory is updated
         if (!validTrajectoryNumber(trajectoryNumber)) {
-            cerr << "Trajectory number " << trajectoryNumber << " not valid." << endl;
+//            cerr << "Trajectory number " << trajectoryNumber << " not valid." << endl;
             return;
         }
         assert(!open.empty());
@@ -154,8 +154,8 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
         }
     }
 
-    std::cerr << "Managed " << iterations << " iterations of limited-branching MPC (" << c_ScoringTimeStep * iterations
-        << " seconds in the future)" << std::endl;
+//    std::cerr << "Managed " << iterations << " iterations of limited-branching MPC (" << c_ScoringTimeStep * iterations
+//        << " seconds in the future)" << std::endl;
 
     assert(std::isfinite(r) && std::isfinite(t));
 }
@@ -338,8 +338,8 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
         }
     }
 
-    std::cerr << "Managed " << iterations << " iterations of limited-branching MPC (" << c_ScoringTimeStep * iterations
-              << " seconds in the future)" << std::endl;
+//    std::cerr << "Managed " << iterations << " iterations of limited-branching MPC (" << c_ScoringTimeStep * iterations
+//              << " seconds in the future)" << std::endl;
 
     assert(std::isfinite(r) && std::isfinite(t));
 
@@ -371,7 +371,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
     switch (status) {
         case std::future_status::ready:
             m_LastMpc.get(); // not sure this is necessary
-            cerr << "Got last iteration's future" << endl;
+//            cerr << "Got last iteration's future" << endl;
             break;
         case std::future_status::timeout:
             // bad
@@ -385,6 +385,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
     // kick off the new MPC thread
     // copies reference trajectory so we shouldn't have to deal with issues of a reference to a local variable going out of scope
     m_LastMpc = std::async(std::launch::async, [=]{ runMpc(trajectory, start, result, trajectoryNumber); });
+
 //    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
 //    mpcThread.detach();
 
@@ -413,17 +414,17 @@ VehicleState Controller::getStateAfterCurrentControl() {
 
 void Controller::sendControls(double r, double t) {
     // TODO! -- concurrency safety?
-    cerr << "Sending controls " << r << ", " << t << endl;
+//    cerr << "Sending controls " << r << ", " << t << endl;
     m_LastRudder = r;
     m_LastThrottle = t;
     m_ControlReceiver->receiveControl(r, t);
 }
 
 void Controller::runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber) {
-    cerr << "Starting new thread for MPC loop" << endl;
+//    cerr << "Starting new thread for MPC loop" << endl;
     // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
     int startIndex = -1, goalIndex = -1;
-    for (int i = 0; i < trajectory.size(); i++) {
+    for (int i = 1; i < trajectory.size(); i++) {
         if (start.time() >= trajectory[i].time()) continue;
         else if (startIndex == -1){
             startIndex = i - 1;
@@ -455,7 +456,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
     if (m_ControlReceiver->getTime() >= endTime) {
         std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
     }
-    cerr << "Ending an old thread running MPC" << endl;
+//    cerr << "Ending an old thread running MPC" << endl;
 }
 
 
