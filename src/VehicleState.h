@@ -2,6 +2,7 @@
 #define SRC_VEHICLESTATE_H
 
 #include "path_planner/State.h"
+#include <vector>
 
 //using namespace std;
 

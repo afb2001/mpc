@@ -4,8 +4,7 @@
 #include "control_receiver.h"
 #include "path_planner/State.h"
 #include "VehicleState.h"
-#include "current_estimator.h"
-#include "OtherCurrentEstimator.h"
+#include "CurrentEstimator.h"
 #include <mutex>
 #include <future>
 #include <random>
@@ -161,7 +160,7 @@ private:
      * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
      * are received.
      */
-    static constexpr double c_ReferenceTrajectoryExpirationTime = 5;
+    static constexpr double c_ReferenceTrajectoryExpirationTime = 5; // disabled expiration for controller test node
 
     /**
      * Threshold below which the controller will tell the executive to simply assume the reference trajectory is

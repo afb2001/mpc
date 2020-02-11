@@ -24,18 +24,12 @@ double Controller::getTime()
 
 void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber)
 {
-    // TODO! -- write a similar method to do MPC the first time when we need to find a state 1s in the future
-    // also write something to kick this off in a new thread for a few iterations (see notes)
-    // should be able to make reference trajectory copy a const reference. could help performance
-    // TODO! -- should simulate current state with last issued controls to determine starting point for this iteration
-    // TODO! -- update current estimator
+    std::pair<double, double> currentEstimate = m_CurrentEstimator.getCurrent(startCopy);
 
-    // TODO! -- acquire current estimate from updated estimator
-    std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
+//    std::cerr << "Current estimated to be " << currentEstimate.first << ", " << currentEstimate.second << std::endl;
 
 //    cerr << "Starting MPC (3)" << endl;
     assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
-
 
     // intentional use of integer division (m_Rudders / 2)
     double rudderGranularity = 1.0 / (m_Rudders / 2), throttleGranularity = 1.0 / (m_Throttles - 1);
@@ -184,6 +178,7 @@ double Controller::compareStates(const State& s1, const VehicleState& s2) const 
 }
 
 State Controller::interpolateTo(double desiredTime, const std::vector<State>& trajectory) {
+    // doesn't handle duplicates well, I suspect
     if (trajectory.size() < 2) throw std::logic_error("Cannot interpolate on a trajectory with fewer than 2 states");
     int i = 1;
     for (; i < trajectory.size() && trajectory[i].time() < desiredTime; i++) ;
@@ -202,9 +197,9 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
     static_assert(c_ScoringTimeStep == 1, "This method makes an assumption about the scoring time step");
 
 //    cerr << "Starting MPC (4)" << endl;
-    // TODO! -- update current estimator
-    // TODO! -- acquire current estimate from updated estimator
-    std::pair<double, double> currentEstimate = std::make_pair(0.0, 0.0);
+    std::pair<double, double> currentEstimate = m_CurrentEstimator.getCurrent(startCopy);
+
+//    std::cerr << "Current estimated to be " << currentEstimate.first << ", " << currentEstimate.second << std::endl;
 
     assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
 
@@ -292,6 +287,11 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
             lastInterpolated = interpolateTo(s.State.state.time(), referenceTrajectoryCopy);
         }
         auto score = compareStates(lastInterpolated, s.State) * weight + s.PrevScore;
+        if (score < 0 || !isfinite(score)) {
+            std::cerr << "Uh oh. Score is " << score << std::endl;
+            std::cerr << "States: " << lastInterpolated.toString() << ", " << s.State.toString() << std::endl;
+        }
+        assert(isfinite(score));
         assert(score >= 0 && "Score should be non-negative");
         if (s.Depth > 0) {
             if (score < minScore) {
@@ -341,6 +341,10 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
 }
 
 State Controller::updateReferenceTrajectory(const vector<State>& trajectory, long trajectoryNumber) {
+//    cerr << "Controller received reference trajectory: ";
+//    for (const auto s : trajectory) cerr << "\n" << s.toString();
+//    cerr << endl;
+
     if (trajectory.size() < 2) {
         // Not long enough for MPC. Balk out.
         // NOTE: previous MPC thread may still be running; that can time out on its own
@@ -410,7 +414,7 @@ VehicleState Controller::getStateAfterCurrentControl() {
     }
     // TODO! -- figure out concurrency issues here - last controls should be protected somehow
     VehicleState start(startCopy);
-    auto current = m_CurrentEstimator.getCurrent();
+    auto current = m_CurrentEstimator.getCurrent(startCopy);
     // simulate last issued control to how long it will take us to compute the next one
     start.simulate(m_LastRudder, m_LastThrottle, c_PlanningTime, current);
     return start;
@@ -422,38 +426,40 @@ void Controller::sendControls(double r, double t) {
     m_LastRudder = r;
     m_LastThrottle = t;
     m_ControlReceiver->receiveControl(r, t);
+    std::unique_lock<mutex> lock(m_CurrentLocationMutex);
+    m_CurrentEstimator.updateEstimate(m_CurrentLocation, r, t);
 }
 
 void Controller::runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber) {
 //    cerr << "Starting new thread for MPC loop" << endl;
     // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
-    int startIndex = -1, goalIndex = -1;
-    for (int i = 1; i < trajectory.size(); i++) {
-        if (start.time() >= trajectory[i].time()) continue;
-        else if (startIndex == -1){
-            startIndex = i - 1;
-            trajectory[startIndex] = start;
-        }
-        if (result.time() < trajectory[i].time() && goalIndex == -1) {
-            goalIndex = i - 1;
-            trajectory[goalIndex] = result;
-        }
-        if (goalIndex != -1 && startIndex != -1) break;
-    }
+//    int startIndex = -1, goalIndex = -1;
+//    for (int i = 1; i < trajectory.size(); i++) {
+//        if (start.time() >= trajectory[i].time()) continue;
+//        else if (startIndex == -1){
+//            startIndex = i - 1;
+//            trajectory[startIndex] = start;
+//        }
+//        if (result.time() < trajectory[i].time() && goalIndex == -1) {
+//            goalIndex = i - 1;
+//            trajectory[goalIndex] = result;
+//        }
+//        if (goalIndex != -1 && startIndex != -1) break;
+//    }
     auto endTime = m_ControlReceiver->getTime() + c_ReferenceTrajectoryExpirationTime;
     double r = 0, t = 0;
     while (m_ControlReceiver->getTime() < endTime) {
         if (!validTrajectoryNumber(trajectoryNumber)) break;
         auto stateAfterCurrentControl = getStateAfterCurrentControl();
-        for (int i = startIndex; i < trajectory.size(); i++) {
-            if (stateAfterCurrentControl.state.time() < trajectory[i].time()) {
-                if (i - 1 != goalIndex) { // don't overwrite the state we gave to the planner
-                    startIndex = i - 1;
-                    trajectory[startIndex] = stateAfterCurrentControl;
-                }
-                break;
-            }
-        }
+//        for (int i = startIndex; i < trajectory.size(); i++) {
+//            if (stateAfterCurrentControl.state.time() < trajectory[i].time()) {
+//                if (i - 1 != goalIndex) { // don't overwrite the state we gave to the planner
+//                    startIndex = i - 1;
+//                    trajectory[startIndex] = stateAfterCurrentControl;
+//                }
+//                break;
+//            }
+//        }
         mpc(r, t, stateAfterCurrentControl, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }

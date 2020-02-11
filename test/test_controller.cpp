@@ -190,15 +190,13 @@ TEST(ControllerUnitTests, turnAroundTest3)
 TEST(CurrentEstimatorTests, currentEstimatorTest1)
 {
     CurrentEstimator currentEstimator;
-    vector<VehicleState> reference;
-    reference.emplace_back(State(0,0,0,0,1.05));
-    currentEstimator.updateEstimate(State(0,0,0,0,1), reference);
-    pair<double,double> p(0,0);
-    EXPECT_LT(fabs(currentEstimator.getCurrent().second - p.second), 0.001);
-    currentEstimator.updateEstimate(State(0,0.1,0,0,1.05), reference);
-    p.second = 0.1 / 50 / 0.05;
-    // floating point math makes me do this instead of equality comparison
-    EXPECT_LT(fabs(currentEstimator.getCurrent().second - p.second), 0.001);
+    VehicleState start(State(0, 0, 0, 0, 1));
+    currentEstimator.updateEstimate(start.state, -0.8, 1);
+    start = start.simulate(-0.8, 1, 1);
+    start.state.x() -= 0.4;
+    auto current = currentEstimator.getCurrent(start);
+    EXPECT_NEAR(current.first, -0.4, 1.0e-6);
+    EXPECT_NEAR(current.second, 0, 1.0e-6);
 }
 
 TEST(VehicleStateTests, estimateTest0)
