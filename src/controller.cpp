@@ -178,12 +178,7 @@ double Controller::compareStates(const State& s1, const VehicleState& s2) const 
 }
 
 State Controller::interpolateTo(double desiredTime, const std::vector<State>& trajectory) {
-    // doesn't handle duplicates well, I suspect
-    if (trajectory.size() < 2) throw std::logic_error("Cannot interpolate on a trajectory with fewer than 2 states");
-    int i = 1;
-    for (; i < trajectory.size() && trajectory[i].time() < desiredTime; i++) ;
-    if (trajectory[i].time() < desiredTime) std::cerr << "Warning: extrapolating instead of interpolating" << std::endl;
-    return trajectory[i - 1].interpolate(trajectory[i], desiredTime);
+    return StateInterpolater::interpolateTo(desiredTime, trajectory);
 }
 
 bool Controller::validTrajectoryNumber(long trajectoryNumber) {
