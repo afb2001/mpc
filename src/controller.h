@@ -10,6 +10,7 @@
 #include <random>
 #include "path_planner/Trajectory.h"
 #include "path_planner/TrajectoryDisplayer.h"
+#include "StateInterpolater.h"
 
 /**
  * Class which runs model predictive control and maintains everything required for it.

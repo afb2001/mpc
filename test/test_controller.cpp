@@ -142,6 +142,11 @@ TEST(ControllerUnitTests, turnAroundTest3)
     EXPECT_LT(t, 0.3);
 }
 
+TEST(UnitTests, interpolationTest1)
+{
+
+}
+
 //TEST(ControllerUnitTests, futureEstimateTest1)
 //{
 //    NodeStub stub;
