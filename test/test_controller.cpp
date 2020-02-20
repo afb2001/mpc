@@ -144,7 +144,44 @@ TEST(ControllerUnitTests, turnAroundTest3)
 
 TEST(UnitTests, interpolationTest1)
 {
+    vector<State> trajectory;
+    trajectory.emplace_back(0,0,0,0,1);
+    trajectory.emplace_back(1, 1, 1, 1, 2);
+    trajectory.emplace_back(2, 2, 2, 2, 3);
+    auto s = StateInterpolater::interpolateTo(1.5, trajectory);
+    EXPECT_DOUBLE_EQ(s.x(), 0.5);
+    EXPECT_DOUBLE_EQ(s.y(), 0.5);
+    EXPECT_DOUBLE_EQ(s.heading(), 0.5);
+    EXPECT_DOUBLE_EQ(s.speed(), 0.5);
+    EXPECT_DOUBLE_EQ(s.time(), 1.5);
+}
 
+TEST(UnitTests, interpolationTest2)
+{
+    vector<State> trajectory;
+    trajectory.emplace_back(0,0,-0.5,0,1);
+    trajectory.emplace_back(0, 0, 0.5, 0, 2);
+    trajectory.emplace_back(2, 2, 2, 2, 3);
+    auto s = StateInterpolater::interpolateTo(1.5, trajectory);
+    EXPECT_DOUBLE_EQ(s.x(), 0);
+    EXPECT_DOUBLE_EQ(s.y(), 0);
+    EXPECT_DOUBLE_EQ(s.heading(), 0);
+    EXPECT_DOUBLE_EQ(s.speed(), 0);
+    EXPECT_DOUBLE_EQ(s.time(), 1.5);
+}
+
+TEST(UnitTests, interpolationTest3)
+{
+    vector<State> trajectory;
+    trajectory.emplace_back(0,0,2 * M_PI - 0.5,0,1);
+    trajectory.emplace_back(0, 0, 0.5, 0, 2);
+    trajectory.emplace_back(2, 2, 2, 2, 3);
+    auto s = StateInterpolater::interpolateTo(1.5, trajectory);
+    EXPECT_DOUBLE_EQ(s.x(), 0);
+    EXPECT_DOUBLE_EQ(s.y(), 0);
+    EXPECT_DOUBLE_EQ(s.heading(), 0);
+    EXPECT_DOUBLE_EQ(s.speed(), 0);
+    EXPECT_DOUBLE_EQ(s.time(), 1.5);
 }
 
 //TEST(ControllerUnitTests, futureEstimateTest1)
