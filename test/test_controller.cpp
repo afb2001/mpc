@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <thread>
-//#include "controller.h"
 #include "../src/controller.h"
 #include "NodeStub.h"
 using std::vector;

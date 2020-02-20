@@ -158,7 +158,7 @@ void Controller::terminate()
 {
     std::unique_lock<mutex> lock(m_TrajectoryNumberMutex);
     m_TrajectoryNumber = -1;
-
+    m_CurrentEstimator.resetCurrentEstimate(); // we don't know how long we'll be down so the current may have changed
 }
 
 void Controller::updatePosition(State state) {
