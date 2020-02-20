@@ -69,6 +69,7 @@ public:
      * @param trajectoryNumber
      */
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+    State mpc2(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
 
     /**
      * Same as mpc but returns the state expected to be in 1s in the future
@@ -167,7 +168,7 @@ private:
      * Threshold below which the controller will tell the executive to simply assume the reference trajectory is
      * achievable. Should really be tuned with data somehow.
      */
-    static constexpr double c_CloseEnoughScoreThreshold = 1;
+    static constexpr double c_CloseEnoughScoreThreshold = 2;
 
     /**
      * Interpolate along the given trajectory to the desired time.

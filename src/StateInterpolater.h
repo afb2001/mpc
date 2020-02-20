@@ -17,7 +17,7 @@ public:
         // doesn't handle duplicates well, I suspect
         if (trajectory.size() < 2) throw std::logic_error("Cannot interpolate on a trajectory with fewer than 2 states");
         int i = 1;
-        for (; i < trajectory.size() && trajectory[i].time() < desiredTime; i++) ;
+        for (; i < trajectory.size() - 1 && trajectory[i].time() < desiredTime; i++) ;
         if (trajectory[i].time() < desiredTime) std::cerr << "Warning: extrapolating instead of interpolating" << std::endl;
         return trajectory[i - 1].interpolate(trajectory[i], desiredTime);
     }

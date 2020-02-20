@@ -154,6 +154,161 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     assert(std::isfinite(r) && std::isfinite(t));
 }
 
+State Controller::mpc2(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber)
+{
+    std::pair<double, double> currentEstimate = m_CurrentEstimator.getCurrent(startCopy);
+
+//    std::cerr << "Current estimated to be " << currentEstimate.first << ", " << currentEstimate.second << std::endl;
+
+//    cerr << "Starting MPC" << endl;
+    assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
+
+    // intentional use of integer division (m_Rudders / 2)
+    const double rudderGranularity = 1.0 / (m_Rudders / 2), throttleGranularity = 1.0 / (m_Throttles - 1);
+    double minRudder = -1, midRudder = 0, maxRudder = 1;
+    double minThrottle = 0, maxThrottle = 1;
+
+    // Use a queue to do breadth first search in the space of future controls, keeping track of only the first control
+    // in the sequence, which is what is to be emitted, and the most recent control, so we know which controls to expand
+    // with next.
+    struct MpcState {
+    public:
+        VehicleState state;
+        double LastRudder{}, LastThrottle{};
+        double Score{};
+        MpcState(): state(State()){};
+    };
+
+    std::vector<MpcState> overallBestTrajectory; // has to be dynamic because we don't know how many iterations we'll get
+    double initialRudders[6] = {minRudder, midRudder, maxRudder, 0, 0, 0}; // min, mid, max
+    const int nInitialRudders = 3;
+    double initialThrottles[5] = {minThrottle, maxThrottle, 0, 0, 0}; // min, max
+    const int nInitialThrottles = 2;
+
+    int iterations = 0;
+    const auto maxIterations = referenceTrajectoryCopy.size();
+    // set up storage (no heap memory)
+    // each "stack frame" in DFS is represented by a slot in these arrays, so I can skip overhead of recursion
+    State interpolated[maxIterations];
+    MpcState currentTrajectory[maxIterations + 1], bestTrajectory[maxIterations + 1]; // currentTrajectory holds start too
+    currentTrajectory[0].state = startCopy;
+    currentTrajectory[0].LastRudder = m_LastRudder;
+    currentTrajectory[0].LastThrottle = m_LastThrottle;
+    currentTrajectory[0].Score = 0;
+    double ruddersArray[maxIterations][6], throttlesArray[maxIterations][5];
+    int nRuddersArray[maxIterations], nThrottlesArray[maxIterations];
+    int rudderIndices[maxIterations], throttleIndices[maxIterations];
+
+    while (iterations < maxIterations) { // don't even bother to check the time here
+        auto minScore = DBL_MAX;
+        // cut out when the reference trajectory is updated
+        if (!validTrajectoryNumber(trajectoryNumber)) {
+//            cerr << "Trajectory number " << trajectoryNumber << " not valid." << endl;
+            return State(); // skip cleanup because we're supposed to terminate the thread
+        }
+
+        // initialize all the slots
+        std::copy(initialRudders, initialRudders + 6, ruddersArray[iterations]);
+        std::copy(initialThrottles, initialThrottles + 5, throttlesArray[iterations]);
+        nRuddersArray[iterations] = nInitialRudders;
+        nThrottlesArray[iterations] = nInitialThrottles;
+        rudderIndices[iterations] = 0;
+        throttleIndices[iterations] = 0; // not necessary as default for int is zero but I want to be sure
+        interpolated[iterations] = interpolateTo(startCopy.time() + ((iterations + 1) * c_ScoringTimeStep), referenceTrajectoryCopy);
+        int index = 0;
+        while (index >= 0) {
+            if (m_ControlReceiver->getTime() >= endTime) {
+                goto mpcCleanup; // skip assigning best trajectory because we didn't finish the iteration
+            }
+            auto& current = currentTrajectory[index];
+            auto& rudderIndex = rudderIndices[index];
+            auto& throttleIndex = throttleIndices[index];
+            auto& rudders = ruddersArray[index];
+            auto& throttles = throttlesArray[index];
+            auto& nRudders = nRuddersArray[index];
+            auto& nThrottles = nThrottlesArray[index];
+            if (rudderIndex == nRudders && throttleIndex == nThrottles) {
+                // climb down a frame
+                rudderIndex = 0; throttleIndex = 0;
+                index--;
+                continue;
+            }
+            if (rudderIndex == 0 && throttleIndex == 0) {
+                // this is the first time through with this configuration, so set up rudders and throttles
+                nRudders = 3;
+                nThrottles = 2; // min, (mid), max
+                const auto lowRudder = current.LastRudder - rudderGranularity;
+                const auto highRudder = current.LastRudder + rudderGranularity;
+                if (minRudder + c_Tolerance < lowRudder && fabs(midRudder - lowRudder) > c_Tolerance)
+                    rudders[nRudders++] = lowRudder;
+                if (fabs(midRudder - highRudder) > c_Tolerance && maxRudder > highRudder + c_Tolerance)
+                    rudders[nRudders++] = highRudder;
+                if (fabs(minRudder - current.LastRudder) > c_Tolerance &&
+                    fabs(midRudder - current.LastRudder) > c_Tolerance &&
+                    fabs(maxRudder - current.LastRudder) > c_Tolerance)
+                    rudders[nRudders++] = current.LastRudder;
+                const auto lowThrottle = current.LastThrottle - throttleGranularity;
+                const auto highThrottle = current.LastThrottle + throttleGranularity;
+                if (minThrottle + c_Tolerance < lowThrottle)
+                    throttles[nThrottles++] = lowThrottle;
+                if (maxThrottle > highThrottle + c_Tolerance)
+                    throttles[nThrottles++] = highThrottle;
+                if (fabs(minThrottle - current.LastThrottle) > c_Tolerance &&
+                    fabs(maxThrottle - current.LastThrottle) > c_Tolerance)
+                    throttles[nThrottles++] = current.LastThrottle;
+            }
+            auto& next = currentTrajectory[index + 1];
+            // simulate next state with next controls
+            next.state = current.state.simulate(
+                    rudders[rudderIndex], throttles[throttleIndex], c_ScoringTimeStep, currentEstimate);
+            // store the rudders
+            next.LastRudder = rudders[rudderIndex];
+            next.LastThrottle = throttles[throttleIndex];
+            // calculate and update the score
+            auto score = compareStates(interpolated[index], next.state);
+            next.Score = current.Score + score;
+            // handle if we're at the end of the line
+            if (index == iterations) {
+                if (score < minScore) {
+                    std::copy(currentTrajectory, currentTrajectory + iterations + 2, bestTrajectory);
+                    minScore = score;
+                }
+            } else {
+                // climb up a frame
+                index++;
+            }
+
+            // set up for the next time we'll use this frame
+            rudderIndex++;
+            if (rudderIndex == nRudders) {
+                throttleIndex++;
+                if (throttleIndex != nThrottles) {
+                    rudderIndex = 0;
+                }
+            }
+        }
+        // copy best trajectory into overarching best trajectory
+        iterations++; // increase depth
+        overallBestTrajectory = std::vector<MpcState>(iterations + 1); // set capacity
+        std::copy(bestTrajectory, bestTrajectory + iterations + 1, overallBestTrajectory.begin());
+    }
+
+mpcCleanup: // shush I'm using it sparingly and appropriately
+
+//    std::cerr << "Managed " << iterations << " iterations of limited-branching MPC (" << c_ScoringTimeStep * iterations
+//        << " seconds in the future)" << std::endl;
+
+    assert(overallBestTrajectory.size() > 1);
+    r = overallBestTrajectory[1].LastRudder; t = overallBestTrajectory[1].LastThrottle;
+    std::vector<State> forDisplay;
+    for (const auto& s : overallBestTrajectory) forDisplay.emplace_back(s.state.state);
+    m_ControlReceiver->displayTrajectory(forDisplay, false);
+    assert(std::isfinite(r) && std::isfinite(t));
+    static_assert(c_ScoringTimeStep == 1.0);
+    return forDisplay[1]; // based on c_ScoringTimeStep
+//    return interpolateTo(startCopy.time() - c_PlanningTime, forDisplay);
+}
+
 void Controller::terminate()
 {
     std::unique_lock<mutex> lock(m_TrajectoryNumberMutex);
@@ -353,7 +508,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 
     double r = 0, t = 0;
 //    cerr << "Doing initial mpc..." << endl;
-    auto result = initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
+    auto result = mpc2(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber); // initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
 //    cerr << "Finished initial mpc" << endl;
 
     sendControls(r, t);
@@ -455,7 +610,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
 //                break;
 //            }
 //        }
-        mpc(r, t, stateAfterCurrentControl, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
+        mpc2(r, t, stateAfterCurrentControl, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }
     if (m_ControlReceiver->getTime() >= endTime) {
