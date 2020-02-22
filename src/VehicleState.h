@@ -26,8 +26,17 @@ public:
     }
 
     VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent) {
-        std::vector<VehicleState> simulated;
-        return simulate(rudder, throttle, t, estimatedCurrent, simulated);
+        if (rudder < -1) rudder = -1;
+        else if (rudder > 1) rudder = 1;
+        if (throttle < 0) throttle = 0;
+        else if (throttle > 1) throttle = 1;
+        VehicleState vehicleState(*this);
+        while (t > 0) {
+            double dTime = t < 0.1 ? t : 0.1;
+            t -= 0.1;
+            estimate(vehicleState, rudder, throttle, dTime, estimatedCurrent);
+        }
+        return vehicleState;
     }
 
     VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent,
@@ -130,7 +139,8 @@ private:
         if (vehicleState.state.heading() < 0)
             vehicleState.state.heading() += M_PI * 2;
 
-        double drag = pow(vehicleState.state.speed(), 3) * drag_coefficient;
+        double speed = vehicleState.state.speed();
+        double drag = speed * speed * speed * drag_coefficient;
         vehicleState.state.speed() += ((thrust_fwd - drag) / mass) * d_time;
         double delta = vehicleState.state.speed() * d_time;
 
@@ -174,7 +184,8 @@ private:
         if (vehicleState.state.heading() < 0)
             vehicleState.state.heading() += M_PI * 2;
 
-        double drag = pow(vehicleState.state.speed(), 3) * drag_coefficient;
+        double speed = vehicleState.state.speed();
+        double drag = speed * speed * speed * drag_coefficient;
         vehicleState.state.speed() += ((thrust_fwd - drag) / mass) * d_time;
         double delta = vehicleState.state.speed() * d_time;
 

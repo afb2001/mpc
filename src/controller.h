@@ -162,7 +162,7 @@ private:
      * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
      * are received.
      */
-    static constexpr double c_ReferenceTrajectoryExpirationTime = 5; // disabled expiration for controller test node
+    static constexpr double c_ReferenceTrajectoryExpirationTime = 5; // if this is big it's for controller tests
 
     /**
      * Threshold below which the controller will tell the executive to simply assume the reference trajectory is
