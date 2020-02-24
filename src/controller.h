@@ -97,7 +97,8 @@ public:
      * @param headingWeight
      * @param speedWeight
      */
-    void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight);
+    void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight,
+                      double achievableThreshold);
 
     /**
      * Set the trajectory number. Only public for testing.
@@ -170,7 +171,7 @@ private:
      * Threshold below which the controller will tell the executive to simply assume the reference trajectory is
      * achievable. Should really be tuned with data somehow.
      */
-    static constexpr double c_CloseEnoughScoreThreshold = 2;
+    double m_AchievableScoreThreshold = 2;
 
     /**
      * Interpolate along the given trajectory to the desired time.

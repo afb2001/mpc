@@ -322,10 +322,12 @@ void Controller::updatePosition(State state) {
     m_CurrentLocationMutex.unlock();
 }
 
-void Controller::updateConfig(int rudders, int throttles,
-                              double distanceWeight, double headingWeight, double speedWeight) {
+void Controller::updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight,
+                              double speedWeight,
+                              double achievableThreshold) {
     m_Rudders = rudders; m_Throttles = throttles;
     m_DistanceWeight = distanceWeight; m_HeadingWeight = headingWeight; m_SpeedWeight = speedWeight;
+    m_AchievableScoreThreshold = achievableThreshold;
 }
 
 double Controller::compareStates(const State& s1, const VehicleState& s2) const {
@@ -539,14 +541,16 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 
     auto interpolated = interpolateTo(result.time(), trajectory);
     auto score = compareStates(result, interpolated);
-    if (score <= c_CloseEnoughScoreThreshold) {
+    if (score <= m_AchievableScoreThreshold) {
         result = interpolated;
         m_Achievable = true;
 //        result.time() = -2; // invalid time meaning we're close enough
 //        std::cerr << "Controller deems us close enough (score = " << score << ")" << std::endl;
     } else {
-        m_Achievable = false;
-        std::cerr << "Controller doesn't think we can make the reference trajectory (score = " << score << ")" << std::endl;
+        // if the score threashold is set to zero we always plan from controller's prediction, so don't report failure
+        m_Achievable = m_AchievableScoreThreshold == 0;
+        if (!m_Achievable)
+            std::cerr << "Controller doesn't think we can make the reference trajectory (score = " << score << ")" << std::endl;
     }
 
     return result;
