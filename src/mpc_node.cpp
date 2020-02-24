@@ -137,9 +137,9 @@ public:
      * @param trajectory
      * @param plannerTrajectory
      */
-    void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) final
+    void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory, bool achievable) final
     {
-        m_TrajectoryDisplayer.displayTrajectory(trajectory, plannerTrajectory);
+        m_TrajectoryDisplayer.displayTrajectory(trajectory, plannerTrajectory, achievable);
     }
 
     /**

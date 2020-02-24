@@ -111,6 +111,8 @@ private:
 
     std::future<void> m_LastMpc;
 
+    bool m_Achievable = true;
+
     // configuration
     int m_Rudders = 21, m_Throttles = 5;
     double m_DistanceWeight{}, m_HeadingWeight{}, m_SpeedWeight{};

@@ -302,7 +302,7 @@ mpcCleanup: // shush I'm using it sparingly and appropriately
     r = overallBestTrajectory[1].LastRudder; t = overallBestTrajectory[1].LastThrottle;
     std::vector<State> forDisplay;
     for (const auto& s : overallBestTrajectory) forDisplay.emplace_back(s.state.state);
-    m_ControlReceiver->displayTrajectory(forDisplay, false);
+    m_ControlReceiver->displayTrajectory(forDisplay, false, m_Achievable);
     assert(std::isfinite(r) && std::isfinite(t));
     static_assert(c_ScoringTimeStep == 1.0);
     return forDisplay[1]; // based on c_ScoringTimeStep
@@ -541,9 +541,11 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
     auto score = compareStates(result, interpolated);
     if (score <= c_CloseEnoughScoreThreshold) {
         result = interpolated;
+        m_Achievable = true;
 //        result.time() = -2; // invalid time meaning we're close enough
 //        std::cerr << "Controller deems us close enough (score = " << score << ")" << std::endl;
     } else {
+        m_Achievable = false;
         std::cerr << "Controller doesn't think we can make the reference trajectory (score = " << score << ")" << std::endl;
     }
 

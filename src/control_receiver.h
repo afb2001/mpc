@@ -22,7 +22,7 @@ public:
      * @param trajectory
      * @param plannerTrajectory
      */
-    virtual void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) = 0;
+    virtual void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory, bool achievable) = 0;
 
     /**
      * Get the current time.
