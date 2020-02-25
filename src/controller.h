@@ -106,6 +106,16 @@ public:
      */
     void setTrajectoryNumber(long trajectoryNumber);
 
+    /**
+     * Get the similarity score for these two states (lower score => more similar). This uses the weights set in
+     * updateConfig. I don't see a use for this outside the controller but it's public to make it easier to test.
+     * Maybe it should be its own class but that complicates things a little more.
+     * @param s1
+     * @param s2
+     * @return
+     */
+    double compareStates(const State& s1, const State& s2) const;
+
 private:
 
     ControlReceiver* m_ControlReceiver;
@@ -130,7 +140,7 @@ private:
     double m_LastRudder = 0, m_LastThrottle = 0; // should replace with some kind of collection with time stamps
 
     double compareStates(const State& s1, const VehicleState& s2) const;
-    double compareStates(const State& s1, const State& s2) const;
+
 
     bool validTrajectoryNumber(long trajectoryNumber);
 

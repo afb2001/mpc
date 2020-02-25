@@ -19,12 +19,30 @@ TEST(UnitTests, headingTowardsTest) {
     EXPECT_DOUBLE_EQ(s1.headingTo(s5), M_PI);
 }
 
+TEST(UnitTests, compareStatesTest1) {
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, 0.01, 1);
+    auto score = controller.compareStates(s1, s2);
+    EXPECT_DOUBLE_EQ(score, 1.11);
+}
+
+TEST(UnitTests, compareStatesTest2) {
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, -0.01, 1);
+    auto score = controller.compareStates(s1, s2);
+    EXPECT_DOUBLE_EQ(score, 1.11);
+}
+
 
 TEST(ControllerUnitTests, goNowhere3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 1, 0);
     State start(0,0,0,0,6);
     vector<State> reference;
     reference.emplace_back(0,0,0,0,7);

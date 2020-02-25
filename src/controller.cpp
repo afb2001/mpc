@@ -627,12 +627,13 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
 
 double Controller::compareStates(const State& s1, const State& s2) const {
     // ignore differences in time
-    double headingDiff = fabs(fmod((s1.heading() - s2.heading()), 2 * M_PI));
+    static constexpr double twoPi = 2 * M_PI;
+    auto headingDiff = fabs(fmod(fmod((s2.heading() - s1.heading()), twoPi) + 3 * M_PI, twoPi) - M_PI); // not right somehow
     auto speedDiff = fabs(s1.speed() - s2.speed());
     auto dx = s1.x() - s2.x();
     auto dy = s1.y() - s2.y();
     auto d = sqrt(dx * dx + dy * dy);
-    return m_DistanceWeight * d + m_HeadingWeight * headingDiff * m_SpeedWeight * speedDiff;
+    return m_DistanceWeight * d + m_HeadingWeight * headingDiff + m_SpeedWeight * speedDiff;
 }
 
 
