@@ -2,6 +2,9 @@
 #include <thread>
 #include "../src/controller.h"
 #include "NodeStub.h"
+extern "C" {
+#include "dubins.h"
+};
 using std::vector;
 using std::pair;
 using std::cerr;
@@ -303,6 +306,34 @@ TEST(UnitTests, interpolationTest3)
     EXPECT_DOUBLE_EQ(s.heading(), 0);
     EXPECT_DOUBLE_EQ(s.speed(), 0);
     EXPECT_DOUBLE_EQ(s.time(), 1.5);
+}
+
+TEST(UnitTests, interpolationDubinsTest1)
+{
+    DubinsPath path;
+    vector<State> trajectory;
+    State s1(0, 0, 0, 1, 1), s2(23, -19, 1.731, 1, -1);
+    State dubinsState(0, 0, 0, 1, -1);
+    dubins_shortest_path(&path, s1.pose(), s2.pose(), 8);
+    auto length = dubins_path_length(&path);
+    double lengthSoFar = 0;
+    const double errorTolerance = 1e-2;
+    while (lengthSoFar < length) {
+        dubins_path_sample(&path, lengthSoFar, dubinsState.pose());
+        dubinsState.time() = lengthSoFar + s1.time();
+        trajectory.push_back(dubinsState);
+        lengthSoFar += 0.5; // half second because that's how planner gives trajectories
+    }
+    lengthSoFar = 0.25;
+    while (lengthSoFar < length) {
+        dubins_path_sample(&path, lengthSoFar, dubinsState.pose());
+        dubinsState.time() = lengthSoFar + s1.time();
+        auto interpolated = StateInterpolater::interpolateTo(dubinsState.time(), trajectory);
+        EXPECT_NEAR(dubinsState.x(), interpolated.x(), errorTolerance);
+        EXPECT_NEAR(dubinsState.y(), interpolated.y(), errorTolerance);
+        EXPECT_NEAR(0, interpolated.headingDifference(dubinsState), errorTolerance);
+        lengthSoFar += 0.5;
+    }
 }
 
 //TEST(ControllerUnitTests, futureEstimateTest1)

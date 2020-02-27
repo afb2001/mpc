@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
     path_planner
     actionlib_msgs
     dynamic_reconfigure
+    dubins_curves
 )
 
 add_service_files(
@@ -43,9 +44,14 @@ include_directories(
    ${pathplanner_INCLUDE_DIRS}
 )
 
+add_library(controller
+        src/controller.cpp
+        src/CurrentEstimator.cpp
+        )
+
 add_executable(${PROJECT_NAME}_node
         src/mpc_node.cpp
-        src/controller.cpp src/CurrentEstimator.cpp)
+        )
 
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)
@@ -53,9 +59,12 @@ add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
+        controller
  )
 
-catkin_add_gtest(test_controller test/test_controller.cpp src/controller.cpp src/CurrentEstimator.cpp test/NodeStub.cpp)
+catkin_add_gtest(test_controller test/test_controller.cpp test/NodeStub.cpp)
+
+target_link_libraries(test_controller controller dubins)
 
 ## Mark executables and/or libraries for installation
 #install(TARGETS ${PROJECT_NAME}_node

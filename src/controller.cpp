@@ -547,7 +547,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 //        result.time() = -2; // invalid time meaning we're close enough
 //        std::cerr << "Controller deems us close enough (score = " << score << ")" << std::endl;
     } else {
-        // if the score threashold is set to zero we always plan from controller's prediction, so don't report failure
+        // if the score threshold is set to zero we always plan from controller's prediction, so don't report failure
         m_Achievable = m_AchievableScoreThreshold == 0;
         if (!m_Achievable)
             std::cerr << "Controller doesn't think we can make the reference trajectory (score = " << score << ")" << std::endl;
@@ -627,8 +627,7 @@ void Controller::runMpc(std::vector<State> trajectory, State start, State result
 
 double Controller::compareStates(const State& s1, const State& s2) const {
     // ignore differences in time
-    static constexpr double twoPi = 2 * M_PI;
-    auto headingDiff = fabs(fmod(fmod((s2.heading() - s1.heading()), twoPi) + 3 * M_PI, twoPi) - M_PI); // not right somehow
+    auto headingDiff = fabs(s1.headingDifference(s2));
     auto speedDiff = fabs(s1.speed() - s2.speed());
     auto dx = s1.x() - s2.x();
     auto dy = s1.y() - s2.y();
