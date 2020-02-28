@@ -11,6 +11,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <path_planner/TrajectoryDisplayer.h>
 #include "controller.h"
+#include "Plan.h"
 #include <mpc/mpcConfig.h>
 #include <dynamic_reconfigure/server.h>
 
@@ -152,14 +153,34 @@ public:
      */
     bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
 //        std::cerr << "Controller received reference trajectory of length: " << req.trajectory.states.size() << std::endl;
-        std::vector<State> states;
-        for (const auto &s : req.trajectory.states) {
-            states.push_back(getState(s));
-        }
-        auto s = m_Controller->updateReferenceTrajectory(states, m_TrajectoryNumber++);
+//        std::vector<State> states;
+//        for (const auto &s : req.plan.paths) {
+//            states.push_back(getState(s)); // TODO -- not done with this yet just changed to see if it worked
+//        }
+        auto s = m_Controller->updateReferenceTrajectory(getPlan(req.plan), m_TrajectoryNumber++);
         res.state = getStateMsg(s);
         return s.time() != -1;
     }
+
+    static Plan getPlan(path_planner::Plan plan) {
+        Plan result;
+        for (const auto& d : plan.paths) {
+            DubinsWrapper wrapper;
+            DubinsPath path;
+            path.qi[0] = d.x;
+            path.qi[1] = d.y;
+            path.qi[2] = d.yaw;
+            path.param[0] = d.param0;
+            path.param[1] = d.param1;
+            path.param[2] = d.param2;
+            path.rho = d.rho;
+            path.type = (DubinsPathType)d.type;
+            wrapper.fill(path, d.speed, d.start_time);
+            result.append(wrapper);
+        }
+        return result;
+    }
+
 
     /**
      * @return the current time in seconds

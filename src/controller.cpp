@@ -154,14 +154,14 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     assert(std::isfinite(r) && std::isfinite(t));
 }
 
-State Controller::mpc2(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber)
+State Controller::mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber)
 {
     std::pair<double, double> currentEstimate = m_CurrentEstimator.getCurrent(startCopy);
 
 //    std::cerr << "Current estimated to be " << currentEstimate.first << ", " << currentEstimate.second << std::endl;
 
 //    cerr << "Starting MPC" << endl;
-    assert(referenceTrajectoryCopy.size() >= 2); // make sure reference trajectory is long enough
+    assert(!referenceTrajectoryCopy.empty()); // make sure reference trajectory is long enough
 
     // intentional use of integer division (m_Rudders / 2)
     const double rudderGranularity = 1.0 / (m_Rudders / 2), throttleGranularity = 1.0 / (m_Throttles - 1);
@@ -186,7 +186,8 @@ State Controller::mpc2(double& r, double& t, State startCopy, std::vector<State>
     const int nInitialThrottles = 2;
 
     int iterations = 0;
-    const auto maxIterations = referenceTrajectoryCopy.size();
+    auto trajectoryStartTime = referenceTrajectoryCopy.get().front().getStartTime();
+    const int maxIterations = (trajectoryStartTime - startCopy.time() + referenceTrajectoryCopy.totalTime()) / c_ScoringTimeStep - 1;
     // set up storage (no heap memory)
     // each "stack frame" in DFS is represented by a slot in these arrays, so I can skip overhead of recursion
     State interpolated[maxIterations];
@@ -214,7 +215,9 @@ State Controller::mpc2(double& r, double& t, State startCopy, std::vector<State>
         nThrottlesArray[iterations] = nInitialThrottles;
         rudderIndices[iterations] = 0;
         throttleIndices[iterations] = 0; // not necessary as default for int is zero but I want to be sure
-        interpolated[iterations] = interpolateTo(startCopy.time() + ((iterations + 1) * c_ScoringTimeStep), referenceTrajectoryCopy);
+        interpolated[iterations].time() = startCopy.time() + ((iterations + 1) * c_ScoringTimeStep);
+        referenceTrajectoryCopy.sample(interpolated[iterations]);
+//        interpolated[iterations] = interpolateTo(startCopy.time() + ((iterations + 1) * c_ScoringTimeStep), referenceTrajectoryCopy);
         int index = 0;
         while (index >= 0) {
             if (m_ControlReceiver->getTime() >= endTime) {
@@ -492,15 +495,16 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
     return result;
 }
 
-State Controller::updateReferenceTrajectory(const vector<State>& trajectory, long trajectoryNumber) {
+State Controller::updateReferenceTrajectory(const Plan& plan, long trajectoryNumber) {
 //    cerr << "Controller received reference trajectory: ";
 //    for (const auto s : trajectory) cerr << "\n" << s.toString();
 //    cerr << endl;
 
-    if (trajectory.size() < 2) {
+    if (plan.empty()){
+//    if (trajectory.size() < 2) {
         // Not long enough for MPC. Balk out.
         // NOTE: previous MPC thread may still be running; that can time out on its own
-        std::cerr << "Reference trajectory of length " << trajectory.size() << " too short for MPC. Reference trajectory will not be updated." << std::endl;
+        std::cerr << "Reference trajectory empty and cannot be used for MPC. Reference trajectory will not be updated." << std::endl;
         return State();
     }
     // new scope to use RAII
@@ -510,7 +514,7 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
 
     double r = 0, t = 0;
 //    cerr << "Doing initial mpc..." << endl;
-    auto result = mpc2(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber); // initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
+    auto result = mpc2(r, t, start, plan, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber); // initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
 //    cerr << "Finished initial mpc" << endl;
 
     sendControls(r, t);
@@ -534,12 +538,14 @@ State Controller::updateReferenceTrajectory(const vector<State>& trajectory, lon
     }
     // kick off the new MPC thread
     // copies reference trajectory so we shouldn't have to deal with issues of a reference to a local variable going out of scope
-    m_LastMpc = std::async(std::launch::async, [=]{ runMpc(trajectory, start, result, trajectoryNumber); });
+    m_LastMpc = std::async(std::launch::async, [=]{ runMpc(plan, start, result, trajectoryNumber); });
 
 //    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
 //    mpcThread.detach();
 
-    auto interpolated = interpolateTo(result.time(), trajectory);
+    State interpolated;
+    interpolated.time() = result.time();
+    plan.sample(interpolated);
     auto score = compareStates(result, interpolated);
     if (score <= m_AchievableScoreThreshold) {
         result = interpolated;
@@ -586,7 +592,7 @@ void Controller::sendControls(double r, double t) {
     m_CurrentEstimator.updateEstimate(m_CurrentLocation, r, t);
 }
 
-void Controller::runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber) {
+void Controller::runMpc(Plan trajectory, State start, State result, long trajectoryNumber) {
 //    cerr << "Starting new thread for MPC loop" << endl;
     // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
 //    int startIndex = -1, goalIndex = -1;

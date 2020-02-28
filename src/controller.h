@@ -11,6 +11,7 @@
 #include "path_planner/Trajectory.h"
 #include "path_planner/TrajectoryDisplayer.h"
 #include "StateInterpolater.h"
+#include "Plan.h"
 
 /**
  * Class which runs model predictive control and maintains everything required for it.
@@ -40,7 +41,7 @@ public:
      * @param trajectoryNumber
      * @return a state 1 second in the future
      */
-    State updateReferenceTrajectory(const std::vector<State>& trajectory, long trajectoryNumber);
+    State updateReferenceTrajectory(const Plan& plan, long trajectoryNumber);
 
     /**
      * Update the controller's idea of the current state of the vehicle.
@@ -69,7 +70,7 @@ public:
      * @param trajectoryNumber
      */
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
-    State mpc2(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+    State mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber);
 
     /**
      * Same as mpc but returns the state expected to be in 1s in the future
@@ -156,7 +157,7 @@ private:
      * @param result
      * @param trajectoryNumber
      */
-    void runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber);
+    void runMpc(Plan trajectory, State start, State result, long trajectoryNumber);
 
     // Constants
     /**

@@ -47,6 +47,8 @@ include_directories(
 add_library(controller
         src/controller.cpp
         src/CurrentEstimator.cpp
+        src/DubinsWrapper.cpp
+        src/Plan.cpp
         )
 
 add_executable(${PROJECT_NAME}_node
@@ -57,6 +59,8 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)
 add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 
+target_link_libraries(controller dubins)
+
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
         controller
@@ -64,7 +68,7 @@ target_link_libraries(${PROJECT_NAME}_node
 
 catkin_add_gtest(test_controller test/test_controller.cpp test/NodeStub.cpp)
 
-target_link_libraries(test_controller controller dubins)
+target_link_libraries(test_controller controller)
 
 ## Mark executables and/or libraries for installation
 #install(TARGETS ${PROJECT_NAME}_node
