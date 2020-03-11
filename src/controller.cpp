@@ -174,9 +174,6 @@ VehicleState Controller::mpc2(double& r, double& t, State startCopy, Plan refere
     double minRudder = -1, midRudder = 0, maxRudder = 1;
     double minThrottle = 0, maxThrottle = 1;
 
-    // Use a queue to do breadth first search in the space of future controls, keeping track of only the first control
-    // in the sequence, which is what is to be emitted, and the most recent control, so we know which controls to expand
-    // with next.
     struct MpcState {
     public:
         VehicleState state;
@@ -637,6 +634,7 @@ void Controller::runMpc(Plan trajectory, State start, State result, long traject
 //                break;
 //            }
 //        }
+        if (!trajectory.containsTime(stateAfterCurrentControl.state.time() + 3 * c_ScoringTimeStep)) break; // why 3? Seems like a good number of iterations
         mpc2(r, t, stateAfterCurrentControl.state, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }
