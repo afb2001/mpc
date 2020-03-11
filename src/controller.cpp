@@ -163,6 +163,12 @@ VehicleState Controller::mpc2(double& r, double& t, State startCopy, Plan refere
 //    cerr << "Starting MPC" << endl;
     assert(!referenceTrajectoryCopy.empty()); // make sure reference trajectory is long enough
 
+//    cerr << "Starting mpc with plan:" << endl;
+//    for (const auto& w : referenceTrajectoryCopy.get()) {
+//        auto d = w.unwrap();
+//        cerr << "\t" << d.qi[0] << " " << d.qi[1] << " " << d.qi[2] << " " << fmod(w.getStartTime(), 1000) << " " << fmod(w.getEndTime(), 1000) << endl;
+//    }
+
     // intentional use of integer division (m_Rudders / 2)
     const double rudderGranularity = 1.0 / (m_Rudders / 2), throttleGranularity = 1.0 / (m_Throttles - 1);
     double minRudder = -1, midRudder = 0, maxRudder = 1;
@@ -513,6 +519,9 @@ State Controller::updateReferenceTrajectory(const Plan& plan, long trajectoryNum
         std::cerr << "Reference trajectory empty and cannot be used for MPC. Reference trajectory will not be updated." << std::endl;
         return State();
     }
+
+//    std::cerr << "Starting MPC with plan starting at time " << plan.get().front().getStartTime() << " and going to " << plan.get().back().getEndTime() << std::endl;
+
     // new scope to use RAII
     setTrajectoryNumber(trajectoryNumber);
 

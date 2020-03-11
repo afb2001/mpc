@@ -21,7 +21,7 @@ double DubinsWrapper::length() const {
 }
 
 bool DubinsWrapper::containsTime(double time) const {
-    return m_StartTime <= time && m_EndTime <= time;
+    return m_StartTime <= time && m_EndTime >= time;
 }
 
 void DubinsWrapper::sample(State& s) const {
