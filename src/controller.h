@@ -70,7 +70,7 @@ public:
      * @param trajectoryNumber
      */
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
-    State mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+    VehicleState mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber);
 
     /**
      * Same as mpc but returns the state expected to be in 1s in the future
@@ -107,6 +107,7 @@ public:
      */
     void setTrajectoryNumber(long trajectoryNumber);
 
+
     /**
      * Get the similarity score for these two states (lower score => more similar). This uses the weights set in
      * updateConfig. I don't see a use for this outside the controller but it's public to make it easier to test.
@@ -115,7 +116,7 @@ public:
      * @param s2
      * @return
      */
-    double compareStates(const State& s1, const State& s2) const;
+    double compareStates(const State& s1, const VehicleState& s2) const;
 
 private:
 
@@ -139,9 +140,6 @@ private:
     std::mutex m_TrajectoryNumberMutex;
 
     double m_LastRudder = 0, m_LastThrottle = 0; // should replace with some kind of collection with time stamps
-
-    double compareStates(const State& s1, const VehicleState& s2) const;
-
 
     bool validTrajectoryNumber(long trajectoryNumber);
 

@@ -154,7 +154,7 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     assert(std::isfinite(r) && std::isfinite(t));
 }
 
-State Controller::mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber)
+VehicleState Controller::mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber)
 {
     std::pair<double, double> currentEstimate = m_CurrentEstimator.getCurrent(startCopy);
 
@@ -308,7 +308,7 @@ mpcCleanup: // shush I'm using it sparingly and appropriately
     m_ControlReceiver->displayTrajectory(forDisplay, false, m_Achievable);
     assert(std::isfinite(r) && std::isfinite(t));
     static_assert(c_ScoringTimeStep == 1.0);
-    return forDisplay[1]; // based on c_ScoringTimeStep
+    return overallBestTrajectory[1].state; // based on c_ScoringTimeStep
 //    return interpolateTo(startCopy.time() - c_PlanningTime, forDisplay);
 }
 
@@ -334,7 +334,13 @@ void Controller::updateConfig(int rudders, int throttles, double distanceWeight,
 }
 
 double Controller::compareStates(const State& s1, const VehicleState& s2) const {
-    return compareStates(s1, s2.state);
+    // ignore differences in time
+    auto headingDiff = fabs(s1.headingDifference(s2.courseMadeGood));
+    auto speedDiff = fabs(s1.speed() - s2.state.speed());
+    auto dx = s1.x() - s2.state.x();
+    auto dy = s1.y() - s2.state.y();
+    auto d = sqrt(dx * dx + dy * dy);
+    return m_DistanceWeight * d + m_HeadingWeight * headingDiff + m_SpeedWeight * speedDiff;
 }
 
 State Controller::interpolateTo(double desiredTime, const std::vector<State>& trajectory) {
@@ -453,7 +459,7 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
                 bestCurrentRudder = s.InitialRudder;
                 bestCurrentThrottle = s.InitialThrottle;
                 minScore = score;
-                intermediateResult = s.OneSecondOut;
+                intermediateResult = s.OneSecondOut.state;
 //                std::cerr << "Found new best trajectory with initial controls " << bestCurrentRudder << ", " << bestCurrentThrottle << std::endl;
             }
         } else {
@@ -514,7 +520,7 @@ State Controller::updateReferenceTrajectory(const Plan& plan, long trajectoryNum
 
     double r = 0, t = 0;
 //    cerr << "Doing initial mpc..." << endl;
-    auto result = mpc2(r, t, start, plan, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber); // initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
+    auto result = mpc2(r, t, start.state, plan, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber); // initialMpc(r, t, start, trajectory, m_ControlReceiver->getTime() + c_PlanningTime);
 //    cerr << "Finished initial mpc" << endl;
 
     sendControls(r, t);
@@ -538,15 +544,15 @@ State Controller::updateReferenceTrajectory(const Plan& plan, long trajectoryNum
     }
     // kick off the new MPC thread
     // copies reference trajectory so we shouldn't have to deal with issues of a reference to a local variable going out of scope
-    m_LastMpc = std::async(std::launch::async, [=]{ runMpc(plan, start, result, trajectoryNumber); });
+    m_LastMpc = std::async(std::launch::async, [=]{ runMpc(plan, start.state, result.state, trajectoryNumber); });
 
 //    auto mpcThread = thread([=]{ runMpc(trajectory, start, result, trajectoryNumber); });
 //    mpcThread.detach();
 
     State interpolated;
-    interpolated.time() = result.time();
+    interpolated.time() = result.state.time();
     plan.sample(interpolated);
-    auto score = compareStates(result, interpolated);
+    auto score = compareStates(interpolated, result);
     if (score <= m_AchievableScoreThreshold) {
         result = interpolated;
         m_Achievable = true;
@@ -559,7 +565,7 @@ State Controller::updateReferenceTrajectory(const Plan& plan, long trajectoryNum
             std::cerr << "Controller doesn't think we can make the reference trajectory (score = " << score << ")" << std::endl;
     }
 
-    return result;
+    return result.state;
 }
 
 void Controller::setTrajectoryNumber(long trajectoryNumber) {
@@ -622,23 +628,13 @@ void Controller::runMpc(Plan trajectory, State start, State result, long traject
 //                break;
 //            }
 //        }
-        mpc2(r, t, stateAfterCurrentControl, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
+        mpc2(r, t, stateAfterCurrentControl.state, trajectory, m_ControlReceiver->getTime() + c_PlanningTime, trajectoryNumber);
         sendControls(r, t);
     }
     if (m_ControlReceiver->getTime() >= endTime) {
         std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
     }
 //    cerr << "Ending an old thread running MPC" << endl;
-}
-
-double Controller::compareStates(const State& s1, const State& s2) const {
-    // ignore differences in time
-    auto headingDiff = fabs(s1.headingDifference(s2));
-    auto speedDiff = fabs(s1.speed() - s2.speed());
-    auto dx = s1.x() - s2.x();
-    auto dy = s1.y() - s2.y();
-    auto d = sqrt(dx * dx + dy * dy);
-    return m_DistanceWeight * d + m_HeadingWeight * headingDiff + m_SpeedWeight * speedDiff;
 }
 
 
