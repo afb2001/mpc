@@ -9,7 +9,7 @@ class NodeStub : public ControlReceiver {
 public:
     void receiveControl(double rudder, double throttle) override;
 
-    void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory) override;
+    void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory, bool achievable) override;
 
     double getTime() const override;
 };

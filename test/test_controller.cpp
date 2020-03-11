@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 #include <thread>
-//#include "controller.h"
 #include "../src/controller.h"
 #include "NodeStub.h"
+extern "C" {
+#include "dubins.h"
+};
 using std::vector;
 using std::pair;
 using std::cerr;
@@ -20,12 +22,30 @@ TEST(UnitTests, headingTowardsTest) {
     EXPECT_DOUBLE_EQ(s1.headingTo(s5), M_PI);
 }
 
+TEST(UnitTests, compareStatesTest1) {
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, 0.01, 1);
+    auto score = controller.compareStates(s1, s2);
+    EXPECT_DOUBLE_EQ(score, 1.11);
+}
+
+TEST(UnitTests, compareStatesTest2) {
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, -0.01, 1);
+    auto score = controller.compareStates(s1, s2);
+    EXPECT_DOUBLE_EQ(score, 1.11);
+}
+
 
 TEST(ControllerUnitTests, goNowhere3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 1, 0);
     State start(0,0,0,0,6);
     vector<State> reference;
     reference.emplace_back(0,0,0,0,7);
@@ -38,11 +58,28 @@ TEST(ControllerUnitTests, goNowhere3)
     EXPECT_DOUBLE_EQ(t, 0.0);
 }
 
+TEST(ControllerUnitTests, goNowhere2)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    State start(0,0,0,0,6);
+    vector<State> reference;
+    reference.emplace_back(0,0,0,0,7);
+    reference.emplace_back(0,0,0,0,8);
+    reference.emplace_back(0,0,0,0,9);
+    double r, t;
+    controller.setTrajectoryNumber(1);
+    controller.mpc2(r, t, start, reference, Controller::getTime() + 0.25, 1);
+//    EXPECT_DOUBLE_EQ(r, 0.0);
+    EXPECT_DOUBLE_EQ(t, 0.0);
+}
+
 TEST(ControllerUnitTests, goNorth3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -54,11 +91,27 @@ TEST(ControllerUnitTests, goNorth3)
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
 
+TEST(ControllerUnitTests, goNorth2)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    State start(0,0,0,0,Controller::getTime());
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(0,0.02,0,0.1,Controller::getTime() + 1);
+    reference.emplace_back(0,3.5,0,2,Controller::getTime() + 2);
+    controller.setTrajectoryNumber(1);
+    controller.mpc2(r, t, start, reference, Controller::getTime() + 0.05, 1);
+    EXPECT_DOUBLE_EQ(r, 0.0);
+    EXPECT_DOUBLE_EQ(t, 1.0);
+}
+
 TEST(ControllerUnitTests, goEast3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -70,11 +123,27 @@ TEST(ControllerUnitTests, goEast3)
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
 
+TEST(ControllerUnitTests, goEast2)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    State start(0,0,0,0,Controller::getTime());
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(1,0,M_PI/2,2.5,Controller::getTime() + 1);
+    reference.emplace_back(3.5,0,M_PI/2,2.5,Controller::getTime() + 2);
+    controller.setTrajectoryNumber(1);
+    controller.mpc2(r, t, start, reference, Controller::getTime() + 0.25, 1);
+    EXPECT_DOUBLE_EQ(r, 1);
+    EXPECT_DOUBLE_EQ(t, 1.0);
+}
+
 TEST(ControllerUnitTests, goWest3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -86,11 +155,27 @@ TEST(ControllerUnitTests, goWest3)
     EXPECT_DOUBLE_EQ(t, 1.0);
 }
 
+TEST(ControllerUnitTests, goWest2)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    State start(0,0,0,0,Controller::getTime());
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(-1,0,-M_PI/2,2.5,Controller::getTime() + 1);
+    reference.emplace_back(-3.5,0,-M_PI/2,2.5,Controller::getTime() + 2);
+    controller.setTrajectoryNumber(1);
+    controller.mpc2(r, t, start, reference, Controller::getTime() + 0.25, 1);
+    EXPECT_DOUBLE_EQ(r, -1);
+    EXPECT_DOUBLE_EQ(t, 1.0);
+}
+
 TEST(ControllerUnitTests, realStateTest3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0);
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
@@ -104,6 +189,26 @@ TEST(ControllerUnitTests, realStateTest3)
     EXPECT_NEAR(r,-0.2, 0.001);
     EXPECT_NEAR(t, 1, 0.001);
 }
+
+TEST(ControllerUnitTests, realStateTest2)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    VehicleState start(State(0,0,2,2.3,7));
+    vector<State> reference;
+    double r, t;
+    auto s1 = start.simulate(-0.2, 1, 1, pair<double,double>(0,0));
+    auto s2 = s1.simulate(-0.2, 1, 1, pair<double,double>(0,0));
+    reference.push_back(start);
+    reference.push_back(s1);
+    reference.push_back(s2);
+    controller.setTrajectoryNumber(1);
+    controller.mpc2(r, t, start, reference, Controller::getTime() + 0.1, 1);
+    EXPECT_NEAR(r,-0.2, 0.001);
+    EXPECT_NEAR(t, 1, 0.001);
+}
+
 
 //TEST(ControllerUnitTests, trajectoryDepthTest1)
 //{
@@ -127,7 +232,7 @@ TEST(ControllerUnitTests, turnAroundTest3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0);
     VehicleState start(State(0,0,0,1,7.5));
     vector<State> reference;
     double r, t;
@@ -140,6 +245,95 @@ TEST(ControllerUnitTests, turnAroundTest3)
     controller.mpc(r, t, start, reference, Controller::getTime() + 0.1, 1);
     EXPECT_DOUBLE_EQ(fabs(r), 1);
     EXPECT_LT(t, 0.3);
+}
+
+TEST(ControllerUnitTests, turnAroundTest2)
+{
+    NodeStub stub;
+    Controller controller(&stub);
+    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    VehicleState start(State(0,0,0,1,7.5));
+    vector<State> reference;
+    double r, t;
+    reference.emplace_back(0, -2, M_PI, 2, 8);
+    reference.emplace_back(0, -4, M_PI, 2, 9);
+    reference.emplace_back(0, -6, M_PI, 2, 10);
+    reference.emplace_back(0, -8, M_PI, 2, 11);
+    reference.emplace_back(0, -10, M_PI, 2, 12);
+    controller.setTrajectoryNumber(1);
+    controller.mpc2(r, t, start, reference, Controller::getTime() + 0.1, 1);
+    EXPECT_DOUBLE_EQ(fabs(r), 1);
+    EXPECT_LT(t, 0.3);
+}
+
+TEST(UnitTests, interpolationTest1)
+{
+    vector<State> trajectory;
+    trajectory.emplace_back(0,0,0,0,1);
+    trajectory.emplace_back(1, 1, 1, 1, 2);
+    trajectory.emplace_back(2, 2, 2, 2, 3);
+    auto s = StateInterpolater::interpolateTo(1.5, trajectory);
+    EXPECT_DOUBLE_EQ(s.x(), 0.5);
+    EXPECT_DOUBLE_EQ(s.y(), 0.5);
+    EXPECT_DOUBLE_EQ(s.heading(), 0.5);
+    EXPECT_DOUBLE_EQ(s.speed(), 0.5);
+    EXPECT_DOUBLE_EQ(s.time(), 1.5);
+}
+
+TEST(UnitTests, interpolationTest2)
+{
+    vector<State> trajectory;
+    trajectory.emplace_back(0,0,-0.5,0,1);
+    trajectory.emplace_back(0, 0, 0.5, 0, 2);
+    trajectory.emplace_back(2, 2, 2, 2, 3);
+    auto s = StateInterpolater::interpolateTo(1.5, trajectory);
+    EXPECT_DOUBLE_EQ(s.x(), 0);
+    EXPECT_DOUBLE_EQ(s.y(), 0);
+    EXPECT_DOUBLE_EQ(s.heading(), 0);
+    EXPECT_DOUBLE_EQ(s.speed(), 0);
+    EXPECT_DOUBLE_EQ(s.time(), 1.5);
+}
+
+TEST(UnitTests, interpolationTest3)
+{
+    vector<State> trajectory;
+    trajectory.emplace_back(0,0,2 * M_PI - 0.5,0,1);
+    trajectory.emplace_back(0, 0, 0.5, 0, 2);
+    trajectory.emplace_back(2, 2, 2, 2, 3);
+    auto s = StateInterpolater::interpolateTo(1.5, trajectory);
+    EXPECT_DOUBLE_EQ(s.x(), 0);
+    EXPECT_DOUBLE_EQ(s.y(), 0);
+    EXPECT_DOUBLE_EQ(s.heading(), 0);
+    EXPECT_DOUBLE_EQ(s.speed(), 0);
+    EXPECT_DOUBLE_EQ(s.time(), 1.5);
+}
+
+TEST(UnitTests, interpolationDubinsTest1)
+{
+    DubinsPath path;
+    vector<State> trajectory;
+    State s1(0, 0, 0, 1, 1), s2(23, -19, 1.731, 1, -1);
+    State dubinsState(0, 0, 0, 1, -1);
+    dubins_shortest_path(&path, s1.pose(), s2.pose(), 8);
+    auto length = dubins_path_length(&path);
+    double lengthSoFar = 0;
+    const double errorTolerance = 1e-2;
+    while (lengthSoFar < length) {
+        dubins_path_sample(&path, lengthSoFar, dubinsState.pose());
+        dubinsState.time() = lengthSoFar + s1.time();
+        trajectory.push_back(dubinsState);
+        lengthSoFar += 0.5; // half second because that's how planner gives trajectories
+    }
+    lengthSoFar = 0.25;
+    while (lengthSoFar < length) {
+        dubins_path_sample(&path, lengthSoFar, dubinsState.pose());
+        dubinsState.time() = lengthSoFar + s1.time();
+        auto interpolated = StateInterpolater::interpolateTo(dubinsState.time(), trajectory);
+        EXPECT_NEAR(dubinsState.x(), interpolated.x(), errorTolerance);
+        EXPECT_NEAR(dubinsState.y(), interpolated.y(), errorTolerance);
+        EXPECT_NEAR(0, interpolated.headingDifference(dubinsState), errorTolerance);
+        lengthSoFar += 0.5;
+    }
 }
 
 //TEST(ControllerUnitTests, futureEstimateTest1)
@@ -256,7 +450,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest) {
     VehicleState start(State(0,0,0,0,4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0);
     controller.updatePosition(start);
     auto current = std::make_pair(0.0, 0.0);
     {
@@ -282,7 +476,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
     VehicleState start(State(0,0,0,0,4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0);
     controller.updatePosition(start);
     auto current = std::make_pair(0.0, 0.0);
     vector<State> referenceTrajectory;

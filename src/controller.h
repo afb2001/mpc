@@ -10,6 +10,8 @@
 #include <random>
 #include "path_planner/Trajectory.h"
 #include "path_planner/TrajectoryDisplayer.h"
+#include "StateInterpolater.h"
+#include "Plan.h"
 
 /**
  * Class which runs model predictive control and maintains everything required for it.
@@ -39,7 +41,7 @@ public:
      * @param trajectoryNumber
      * @return a state 1 second in the future
      */
-    State updateReferenceTrajectory(const std::vector<State>& trajectory, long trajectoryNumber);
+    State updateReferenceTrajectory(const Plan& plan, long trajectoryNumber);
 
     /**
      * Update the controller's idea of the current state of the vehicle.
@@ -68,6 +70,7 @@ public:
      * @param trajectoryNumber
      */
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+    VehicleState mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber);
 
     /**
      * Same as mpc but returns the state expected to be in 1s in the future
@@ -95,7 +98,8 @@ public:
      * @param headingWeight
      * @param speedWeight
      */
-    void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight);
+    void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight,
+                      double achievableThreshold);
 
     /**
      * Set the trajectory number. Only public for testing.
@@ -103,11 +107,24 @@ public:
      */
     void setTrajectoryNumber(long trajectoryNumber);
 
+
+    /**
+     * Get the similarity score for these two states (lower score => more similar). This uses the weights set in
+     * updateConfig. I don't see a use for this outside the controller but it's public to make it easier to test.
+     * Maybe it should be its own class but that complicates things a little more.
+     * @param s1
+     * @param s2
+     * @return
+     */
+    double compareStates(const State& s1, const VehicleState& s2) const;
+
 private:
 
     ControlReceiver* m_ControlReceiver;
 
     std::future<void> m_LastMpc;
+
+    bool m_Achievable = true;
 
     // configuration
     int m_Rudders = 21, m_Throttles = 5;
@@ -124,9 +141,6 @@ private:
 
     double m_LastRudder = 0, m_LastThrottle = 0; // should replace with some kind of collection with time stamps
 
-    double compareStates(const State& s1, const VehicleState& s2) const;
-    double compareStates(const State& s1, const State& s2) const;
-
     bool validTrajectoryNumber(long trajectoryNumber);
 
     VehicleState getStateAfterCurrentControl();
@@ -141,7 +155,7 @@ private:
      * @param result
      * @param trajectoryNumber
      */
-    void runMpc(std::vector<State> trajectory, State start, State result, long trajectoryNumber);
+    void runMpc(Plan trajectory, State start, State result, long trajectoryNumber);
 
     // Constants
     /**
@@ -157,16 +171,21 @@ private:
      */
     static constexpr double c_PlanningTime = 0.1;
     /**
+     * Flag that lets me set things a little differently for the controller running on its own.
+     * This is really a temporary solution but it nicely marks everything that needs to get changed.
+     */
+    static constexpr bool c_ControllerTestMode = true;
+    /**
      * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
      * are received.
      */
-    static constexpr double c_ReferenceTrajectoryExpirationTime = 5; // disabled expiration for controller test node
+    static constexpr double c_ReferenceTrajectoryExpirationTime = c_ControllerTestMode? 50000000 : 5; // if this is big it's for controller tests
 
     /**
      * Threshold below which the controller will tell the executive to simply assume the reference trajectory is
      * achievable. Should really be tuned with data somehow.
      */
-    static constexpr double c_CloseEnoughScoreThreshold = 1;
+    double m_AchievableScoreThreshold = 2;
 
     /**
      * Interpolate along the given trajectory to the desired time.
