@@ -26,6 +26,7 @@ bool DubinsWrapper::containsTime(double time) const {
 
 void DubinsWrapper::sample(State& s) const {
     double distance = (s.time() - m_StartTime) * m_Speed;
+    // heading comes back as yaw
     int err = dubins_path_sample(&m_DubinsPath, distance, s.pose());
     if (err == EDUBPARAM) {
         // rounding error sometimes makes us overshoot the length, which causes an error
@@ -34,6 +35,7 @@ void DubinsWrapper::sample(State& s) const {
     if (err != EDUBOK) {
         std::cerr << "Encountered error in dubins library" << std::endl;
     }
+    // set yaw with heading value to correct things
     s.yaw(s.heading()); // TODO! -- change state to internally use yaw?
     s.speed() = m_Speed; // take note of this
 }
@@ -83,4 +85,10 @@ void DubinsWrapper::setEndTime() {
 
 double DubinsWrapper::getEndTime() const {
     return m_EndTime;
+}
+
+void DubinsWrapper::updateEndTime(double endTime) {
+    assert(m_EndTime != -1);
+    assert(endTime <= m_EndTime);
+    m_EndTime = endTime;
 }

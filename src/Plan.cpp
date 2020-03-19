@@ -52,6 +52,7 @@ std::vector<State> Plan::getHalfSecondSamples() const {
         auto r = p.getSamples(planTimeDensity());
         for (const auto& s : r) result.push_back(s);
     }
+    return result;
 }
 
 const std::vector<DubinsWrapper>& Plan::get() const {
@@ -66,4 +67,14 @@ double Plan::totalTime() const {
 bool Plan::containsTime(double time) const {
     for (const auto& p : m_DubinsPaths) if (p.containsTime(time)) return true;
     return false;
+}
+
+double Plan::getStartTime() const {
+    assert(!m_DubinsPaths.empty());
+    return m_DubinsPaths.front().getStartTime();
+}
+
+double Plan::getEndTime() const {
+    assert(!m_DubinsPaths.empty());
+    return m_DubinsPaths.back().getEndTime();
 }

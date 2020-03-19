@@ -176,6 +176,9 @@ public:
             path.rho = d.rho;
             path.type = (DubinsPathType)d.type;
             wrapper.fill(path, d.speed, d.start_time);
+            if (wrapper.getEndTime() > plan.endtime){
+                wrapper.updateEndTime(plan.endtime);
+            }
             result.append(wrapper);
         }
         return result;
