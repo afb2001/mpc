@@ -13,21 +13,12 @@ find_package(catkin REQUIRED COMPONENTS
     rosbag
     project11
     genmsg
-    path_planner
+    path_planner_common
     actionlib_msgs
     dynamic_reconfigure
     dubins_curves
-)
-
-add_service_files(
-        FILES
-        UpdateReferenceTrajectory.srv
-)
-
-generate_messages(
-        DEPENDENCIES
-        std_msgs
-        path_planner
+    project11_transformations
+    geographic_visualization_msgs
 )
 
 generate_dynamic_reconfigure_options(
@@ -35,35 +26,38 @@ generate_dynamic_reconfigure_options(
 )
 
 catkin_package(
-  CATKIN_DEPENDS geometry_msgs roscpp project11 path_planner
+  CATKIN_DEPENDS geometry_msgs roscpp project11 path_planner_common
 )
 
 include_directories(
    include
    ${catkin_INCLUDE_DIRS}
-   ${pathplanner_INCLUDE_DIRS}
+   ${path_planner_INCLUDE_DIRS}
 )
 
 add_library(controller
         src/controller.cpp
         src/CurrentEstimator.cpp
-        src/DubinsWrapper.cpp
-        src/Plan.cpp
         )
+
+add_dependencies(controller path_planner_common project11_transformations_gencpp)
+
+target_link_libraries(controller path_planner_state dubins_plan dubins)
 
 add_executable(${PROJECT_NAME}_node
         src/mpc_node.cpp
         )
 
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp)
+add_dependencies(${PROJECT_NAME}_node marine_msgs_gencpp path_planner_common)
+#add_dependencies(controller project11_transformations_gencpp path_planner_gencpp)
 add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 
-target_link_libraries(controller dubins)
 
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
         controller
+        path_planner_utilities
  )
 
 catkin_add_gtest(test_controller test/test_controller.cpp test/NodeStub.cpp)

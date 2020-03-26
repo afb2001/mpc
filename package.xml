@@ -28,8 +28,9 @@
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rosbag</exec_depend>
   <exec_depend>project11</exec_depend>
-  <depend>path_planner</depend>
+  <depend>path_planner_common</depend>
   <depend>dynamic_reconfigure</depend>
+  <depend>project11_transformations</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

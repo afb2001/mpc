@@ -2,16 +2,14 @@
 #define SRC_CONTROLLER_H
 
 #include "control_receiver.h"
-#include "path_planner/State.h"
+#include "path_planner_common/State.h"
 #include "VehicleState.h"
 #include "CurrentEstimator.h"
 #include <mutex>
 #include <future>
 #include <random>
-#include "path_planner/Trajectory.h"
-#include "path_planner/TrajectoryDisplayer.h"
 #include "StateInterpolater.h"
-#include "Plan.h"
+#include <path_planner_common/DubinsPlan.h>
 
 /**
  * Class which runs model predictive control and maintains everything required for it.
@@ -41,7 +39,7 @@ public:
      * @param trajectoryNumber
      * @return a state 1 second in the future
      */
-    State updateReferenceTrajectory(const Plan& plan, long trajectoryNumber);
+    State updateReferenceTrajectory(const DubinsPlan& plan, long trajectoryNumber);
 
     /**
      * Update the controller's idea of the current state of the vehicle.
@@ -70,7 +68,7 @@ public:
      * @param trajectoryNumber
      */
     void mpc(double& r, double& t, State startCopy, std::vector<State> referenceTrajectoryCopy, double endTime, long trajectoryNumber);
-    VehicleState mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber);
+    VehicleState mpc2(double& r, double& t, State startCopy, DubinsPlan referenceTrajectoryCopy, double endTime, long trajectoryNumber);
 
     /**
      * Same as mpc but returns the state expected to be in 1s in the future
@@ -155,7 +153,7 @@ private:
      * @param result
      * @param trajectoryNumber
      */
-    void runMpc(Plan trajectory, State start, State result, long trajectoryNumber);
+    void runMpc(DubinsPlan trajectory, State start, State result, long trajectoryNumber);
 
     // Constants
     /**
