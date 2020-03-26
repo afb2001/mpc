@@ -6,14 +6,16 @@
 #include "marine_msgs/NavEulerStamped.h"
 #include <vector>
 #include "project11/gz4d_geo.h"
-#include "mpc/UpdateReferenceTrajectory.h"
+#include <path_planner_common/UpdateReferenceTrajectory.h>
 #include <fstream>
 #include <geometry_msgs/PoseStamped.h>
-#include <path_planner/TrajectoryDisplayer.h>
+#include <path_planner_common/TrajectoryDisplayer.h>
 #include "controller.h"
-#include "Plan.h"
+#include <path_planner_common/DubinsPlan.h>
 #include <mpc/mpcConfig.h>
 #include <dynamic_reconfigure/server.h>
+#include <geographic_msgs/GeoPoint.h>
+#include <path_planner_common/TrajectoryDisplayerHelper.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
@@ -49,7 +51,7 @@ public:
 
         m_Dynamic_Reconfigure_Server.setCallback(f);
 
-        m_TrajectoryDisplayer = TrajectoryDisplayer(m_node_handle, &m_display_pub);
+        m_TrajectoryDisplayer = TrajectoryDisplayerHelper(m_node_handle, &m_display_pub);
     }
 
     /**
@@ -151,7 +153,7 @@ public:
      * @param res
      * @return
      */
-    bool updateReferenceTrajectory(mpc::UpdateReferenceTrajectory::Request &req, mpc::UpdateReferenceTrajectory::Response &res) {
+    bool updateReferenceTrajectory(path_planner_common::UpdateReferenceTrajectory::Request &req, path_planner_common::UpdateReferenceTrajectory::Response &res) {
 //        std::cerr << "Controller received reference trajectory of length: " << req.trajectory.states.size() << std::endl;
 //        std::vector<State> states;
 //        for (const auto &s : req.plan.paths) {
@@ -162,8 +164,8 @@ public:
         return s.time() != -1;
     }
 
-    static Plan getPlan(path_planner::Plan plan) {
-        Plan result;
+    static DubinsPlan getPlan(path_planner_common::Plan plan) {
+        DubinsPlan result;
         for (const auto& d : plan.paths) {
             DubinsWrapper wrapper;
             DubinsPath path;
@@ -192,11 +194,11 @@ public:
         return m_TrajectoryDisplayer.getTime();
     }
 
-    path_planner::StateMsg getStateMsg(const State& state) {
+    path_planner_common::StateMsg getStateMsg(const State& state) {
         return m_TrajectoryDisplayer.getStateMsg(state);
     }
 
-    State getState(const path_planner::StateMsg& stateMsg) {
+    State getState(const path_planner_common::StateMsg& stateMsg) {
         return m_TrajectoryDisplayer.getState(stateMsg);
     }
 
@@ -207,7 +209,7 @@ public:
 private:
     ros::NodeHandle m_node_handle;
 
-    TrajectoryDisplayer m_TrajectoryDisplayer;
+    TrajectoryDisplayerHelper m_TrajectoryDisplayer;
 
     double m_current_speed = 0; // marginally better than having it initialized with junk
     double m_current_heading = 0;

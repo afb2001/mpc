@@ -4,6 +4,8 @@
 #include <queue>
 #include <future>
 #include "controller.h"
+#include <cassert>
+#include <cfloat>
 
 using namespace std;
 
@@ -154,7 +156,7 @@ void Controller::mpc(double& r, double& t, State startCopy, std::vector<State> r
     assert(std::isfinite(r) && std::isfinite(t));
 }
 
-VehicleState Controller::mpc2(double& r, double& t, State startCopy, Plan referenceTrajectoryCopy, double endTime, long trajectoryNumber)
+VehicleState Controller::mpc2(double& r, double& t, State startCopy, DubinsPlan referenceTrajectoryCopy, double endTime, long trajectoryNumber)
 {
     std::pair<double, double> currentEstimate = m_CurrentEstimator.getCurrent(startCopy);
 
@@ -504,7 +506,7 @@ State Controller::initialMpc(double& r, double& t, State startCopy, const std::v
     return result;
 }
 
-State Controller::updateReferenceTrajectory(const Plan& plan, long trajectoryNumber) {
+State Controller::updateReferenceTrajectory(const DubinsPlan& plan, long trajectoryNumber) {
 //    cerr << "Controller received reference trajectory: ";
 //    for (const auto s : trajectory) cerr << "\n" << s.toString();
 //    cerr << endl;
@@ -604,7 +606,7 @@ void Controller::sendControls(double r, double t) {
     m_CurrentEstimator.updateEstimate(m_CurrentLocation, r, t);
 }
 
-void Controller::runMpc(Plan trajectory, State start, State result, long trajectoryNumber) {
+void Controller::runMpc(DubinsPlan trajectory, State start, State result, long trajectoryNumber) {
 //    cerr << "Starting new thread for MPC loop" << endl;
     // Set updated start state and the state we're passing on to the planner in appropriate spots in the reference trajectory
 //    int startIndex = -1, goalIndex = -1;

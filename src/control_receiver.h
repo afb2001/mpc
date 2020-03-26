@@ -1,4 +1,4 @@
-#include <path_planner/State.h>
+#include <path_planner_common/State.h>
 
 #ifndef SRC_CONTROL_RECEIVER_H
 #define SRC_CONTROL_RECEIVER_H
