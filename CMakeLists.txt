@@ -32,7 +32,7 @@ catkin_package(
 include_directories(
    include
    ${catkin_INCLUDE_DIRS}
-   ${pathplanner_INCLUDE_DIRS}
+   ${path_planner_INCLUDE_DIRS}
 )
 
 add_library(controller
