@@ -1,5 +1,4 @@
 #include <thread>
-#include <path_planner_common/TrajectoryDisplayer.h>
 #include <queue>
 #include <future>
 #include "controller.h"

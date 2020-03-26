@@ -9,7 +9,6 @@
 #include <path_planner_common/UpdateReferenceTrajectory.h>
 #include <fstream>
 #include <geometry_msgs/PoseStamped.h>
-#include <path_planner_common/TrajectoryDisplayer.h>
 #include "controller.h"
 #include <path_planner_common/DubinsPlan.h>
 #include <mpc/mpcConfig.h>
