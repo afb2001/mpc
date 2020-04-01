@@ -8,7 +8,7 @@ void CurrentEstimator::updateEstimate(const State& state, double rudder, double 
 }
 
 std::pair<double, double> CurrentEstimator::getCurrent(const State& actual) const {
-//    return std::make_pair(0.0, 0.0); // disabled
+    if (!m_Enabled) return std::make_pair(0.0, 0.0);
     if (m_History.empty()) return std::make_pair(0.0, 0.0); // no history yet
     VehicleState expected = m_History.front().state;
     auto timeDifference = actual.time() - expected.state.time();

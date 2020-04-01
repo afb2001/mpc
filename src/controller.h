@@ -97,7 +97,7 @@ public:
      * @param speedWeight
      */
     void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight,
-                      double achievableThreshold);
+                      double achievableThreshold, bool currentEstimation);
 
     /**
      * Set the trajectory number. Only public for testing.
@@ -172,12 +172,12 @@ private:
      * Flag that lets me set things a little differently for the controller running on its own.
      * This is really a temporary solution but it nicely marks everything that needs to get changed.
      */
-    static constexpr bool c_ControllerTestMode = true;
+    static constexpr bool c_ControllerTestMode = false;
     /**
      * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
      * are received.
      */
-    static constexpr double c_ReferenceTrajectoryExpirationTime = c_ControllerTestMode? 50000000 : 5; // if this is big it's for controller tests
+    static constexpr double c_ReferenceTrajectoryExpirationTime = c_ControllerTestMode? 50000000 : 5;
 
     /**
      * Threshold below which the controller will tell the executive to simply assume the reference trajectory is

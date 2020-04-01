@@ -118,7 +118,7 @@ public:
         m_Controller->updateConfig(
                 config.rudders, config.throttles,
                 config.distance_weight, config.heading_weight, config.speed_weight,
-                config.achievable_threshold);
+                config.achievable_threshold, config.current_estimation);
     }
 
     /**

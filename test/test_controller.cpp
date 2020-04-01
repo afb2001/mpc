@@ -25,7 +25,7 @@ TEST(UnitTests, headingTowardsTest) {
 TEST(UnitTests, compareStatesTest1) {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 1, 0, false);
     State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, 0.01, 1);
     auto score = controller.compareStates(s1, s2);
     EXPECT_DOUBLE_EQ(score, 1.11);
@@ -34,7 +34,7 @@ TEST(UnitTests, compareStatesTest1) {
 TEST(UnitTests, compareStatesTest2) {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 1, 0, false);
     State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, -0.01, 1);
     auto score = controller.compareStates(s1, s2);
     EXPECT_DOUBLE_EQ(score, 1.11);
@@ -45,7 +45,7 @@ TEST(ControllerUnitTests, goNowhere3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 1, 0);
+    controller.updateConfig(10, 4, 1, 1, 1, 0, false);
     State start(0,0,0,0,6);
     vector<State> reference;
     reference.emplace_back(0,0,0,0,7);
@@ -62,7 +62,7 @@ TEST(ControllerUnitTests, goNowhere2)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,6);
     vector<State> reference;
     reference.emplace_back(0,0,0,0,7);
@@ -79,7 +79,7 @@ TEST(ControllerUnitTests, goNorth3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -95,7 +95,7 @@ TEST(ControllerUnitTests, goNorth2)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -111,7 +111,7 @@ TEST(ControllerUnitTests, goEast3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -127,7 +127,7 @@ TEST(ControllerUnitTests, goEast2)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -143,7 +143,7 @@ TEST(ControllerUnitTests, goWest3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -159,7 +159,7 @@ TEST(ControllerUnitTests, goWest2)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 0, 0);
+    controller.updateConfig(10, 4, 1, 1, 0, 0, false);
     State start(0,0,0,0,Controller::getTime());
     vector<State> reference;
     double r, t;
@@ -175,7 +175,7 @@ TEST(ControllerUnitTests, realStateTest3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0, false);
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
@@ -194,7 +194,7 @@ TEST(ControllerUnitTests, realStateTest2)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0, false);
     VehicleState start(State(0,0,2,2.3,7));
     vector<State> reference;
     double r, t;
@@ -232,7 +232,7 @@ TEST(ControllerUnitTests, turnAroundTest3)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0, false);
     VehicleState start(State(0,0,0,1,7.5));
     vector<State> reference;
     double r, t;
@@ -251,7 +251,7 @@ TEST(ControllerUnitTests, turnAroundTest2)
 {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0, false);
     VehicleState start(State(0,0,0,1,7.5));
     vector<State> reference;
     double r, t;
@@ -450,7 +450,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest) {
     VehicleState start(State(0,0,0,0,4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0, true);
     controller.updatePosition(start);
     auto current = std::make_pair(0.0, 0.0);
     {
@@ -476,7 +476,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
     VehicleState start(State(0,0,0,0,4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0);
+    controller.updateConfig(10, 5, 1, 1, 0, 0, true);
     controller.updatePosition(start);
     auto current = std::make_pair(0.0, 0.0);
     vector<State> referenceTrajectory;
