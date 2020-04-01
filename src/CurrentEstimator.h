@@ -31,6 +31,10 @@ public:
         m_History.clear();
     }
 
+    void enable() { m_Enabled = true; }
+
+    void disable() { m_Enabled = false; }
+
 private:
 
     struct StateControlPair {
@@ -41,6 +45,7 @@ private:
         double rudder, throttle;
     };
     std::list<StateControlPair> m_History; // history of state/control pairs
+    bool m_Enabled = true;
 
     static constexpr int c_BufferSize = 600;
 };

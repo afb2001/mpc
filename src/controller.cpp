@@ -330,10 +330,11 @@ void Controller::updatePosition(State state) {
 
 void Controller::updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight,
                               double speedWeight,
-                              double achievableThreshold) {
+                              double achievableThreshold, bool currentEstimation) {
     m_Rudders = rudders; m_Throttles = throttles;
     m_DistanceWeight = distanceWeight; m_HeadingWeight = headingWeight; m_SpeedWeight = speedWeight;
     m_AchievableScoreThreshold = achievableThreshold;
+    if (currentEstimation) m_CurrentEstimator.enable(); else m_CurrentEstimator.disable();
 }
 
 double Controller::compareStates(const State& s1, const VehicleState& s2) const {
