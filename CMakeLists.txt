@@ -42,7 +42,8 @@ add_library(controller
 
 add_dependencies(controller path_planner_common project11_transformations_gencpp)
 
-target_link_libraries(controller path_planner_state dubins_plan dubins)
+#target_link_libraries(controller path_planner_state dubins_plan dubins ${catkin_LIBRARIES})
+target_link_libraries(controller ${catkin_LIBRARIES})
 
 add_executable(${PROJECT_NAME}_node
         src/mpc_node.cpp
@@ -57,7 +58,7 @@ add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
         controller
-        path_planner_utilities
+        #path_planner_utilities
  )
 
 catkin_add_gtest(test_controller test/test_controller.cpp test/NodeStub.cpp)
