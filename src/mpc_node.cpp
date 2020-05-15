@@ -113,6 +113,11 @@ public:
                 getTime()));
     }
 
+    /**
+     * Update controller parameters from dynamic reconfig.
+     * @param config
+     * @param level
+     */
     void reconfigureCallback(mpc::mpcConfig &config, uint32_t level)
     {
         m_Controller->updateConfig(
@@ -153,27 +158,27 @@ public:
      * @return
      */
     bool updateReferenceTrajectory(path_planner_common::UpdateReferenceTrajectory::Request &req, path_planner_common::UpdateReferenceTrajectory::Response &res) {
-//        std::cerr << "Controller received reference trajectory of length: " << req.trajectory.states.size() << std::endl;
-//        std::vector<State> states;
-//        for (const auto &s : req.plan.paths) {
-//            states.push_back(getState(s)); // TODO -- not done with this yet just changed to see if it worked
-//        }
-        auto s = m_Controller->updateReferenceTrajectory(getPlan(req.plan), m_TrajectoryNumber++);
-        res.state = getStateMsg(s);
+        auto s = m_Controller->updateReferenceTrajectory(convertPlanFromMessage(req.plan), m_TrajectoryNumber++);
+        res.state = m_TrajectoryDisplayer.convertToStateMsg(s);
         return s.time() != -1;
     }
 
-    static DubinsPlan getPlan(path_planner_common::Plan plan) {
+    /**
+     * Convert to internal DubinsPlan type from the ROS message type.
+     * @param plan
+     * @return
+     */
+    static DubinsPlan convertPlanFromMessage(path_planner_common::Plan plan) {
         DubinsPlan result;
         for (const auto& d : plan.paths) {
             DubinsWrapper wrapper;
             DubinsPath path;
-            path.qi[0] = d.x;
-            path.qi[1] = d.y;
-            path.qi[2] = d.yaw;
-            path.param[0] = d.param0;
-            path.param[1] = d.param1;
-            path.param[2] = d.param2;
+            path.qi[0] = d.initial_x;
+            path.qi[1] = d.initial_y;
+            path.qi[2] = d.initial_yaw;
+            path.param[0] = d.length0;
+            path.param[1] = d.length1;
+            path.param[2] = d.length2;
             path.rho = d.rho;
             path.type = (DubinsPathType)d.type;
             wrapper.fill(path, d.speed, d.start_time);
@@ -191,18 +196,6 @@ public:
      */
     double getTime() const override {
         return m_TrajectoryDisplayer.getTime();
-    }
-
-    path_planner_common::StateMsg getStateMsg(const State& state) {
-        return m_TrajectoryDisplayer.getStateMsg(state);
-    }
-
-    State getState(const path_planner_common::StateMsg& stateMsg) {
-        return m_TrajectoryDisplayer.getState(stateMsg);
-    }
-
-    geographic_msgs::GeoPoint convertToLatLong(const State& state) {
-        return m_TrajectoryDisplayer.convertToLatLong(state);
     }
 
 private:
