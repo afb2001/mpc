@@ -438,13 +438,13 @@ TEST(VehicleStateTests, estimateTest2)
 //
 //}
 
-TEST(VehicleStateTests, simulatedCountTest) {
-    VehicleState start(State(0,0,0,0,4));
-    vector<VehicleState> simulated;
-    auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0), simulated);
-    EXPECT_GT(simulated.size(), 0);
-    EXPECT_EQ(simulated.size(), 9);
-}
+//TEST(VehicleStateTests, simulatedCountTest) {
+//    VehicleState start(State(0,0,0,0,4));
+//    vector<VehicleState> simulated;
+//    auto s1 = start.simulate(0.8, 1, 0.75, pair<double,double>(0,0), simulated);
+//    EXPECT_GT(simulated.size(), 0);
+//    EXPECT_EQ(simulated.size(), 9);
+//}
 
 TEST(ControllerTests, updateReferenceTrajectoryTest) {
     VehicleState start(State(0,0,0,0,4));

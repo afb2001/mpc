@@ -8,7 +8,6 @@
 #include <mutex>
 #include <future>
 #include <random>
-#include "StateInterpolater.h"
 #include <path_planner_common/DubinsPlan.h>
 
 /**

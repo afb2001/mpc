@@ -21,10 +21,25 @@ public:
         rpm = idle_rpm + (state.speed() / max_speed) * (max_rpm - idle_rpm);
     }
 
+    /**
+     * Simulate the given rudder and throttle for the given time, assuming no current.
+     * @param rudder
+     * @param throttle
+     * @param t time
+     * @return
+     */
     VehicleState simulate(double rudder, double throttle, double t) {
         return simulate(rudder, throttle, t, std::make_pair(0.0, 0.0));
     }
 
+    /**
+     * Simulate the given rudder and throttle for the given time with the given current.
+     * @param rudder
+     * @param throttle
+     * @param t time
+     * @param estimatedCurrent
+     * @return
+     */
     VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent) {
         if (rudder < -1) rudder = -1;
         else if (rudder > 1) rudder = 1;
@@ -39,34 +54,10 @@ public:
         return vehicleState;
     }
 
-    VehicleState simulate(double rudder, double throttle, double t, std::pair<double, double> estimatedCurrent,
-            std::vector<VehicleState>& predictedStates) {
-        if (rudder < -1) rudder = -1;
-        else if (rudder > 1) rudder = 1;
-        if (throttle < 0) throttle = 0;
-        else if (throttle > 1) throttle = 1;
-        VehicleState vehicleState(*this);
-        predictedStates.push_back(vehicleState);
-        while (t > 0) {
-            double dTime = t < 0.1 ? t : 0.1;
-            t -= 0.1;
-            predictedStates.push_back(estimate(vehicleState, rudder, throttle, dTime, estimatedCurrent));
-        }
-        return vehicleState;
-    }
-
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "hicpp-explicit-conversions"
-//    /**
-//     * Intentional implicit conversion.
-//     * A vehicle state is essentially a regular state so I'm doing this in lieu of polymorphism
-//     * @return
-//     */
-//    operator State() const { // NOLINT(google-explicit-constructor)
-//        return state;
-//    }
-#pragma clang diagnostic pop
-
+    /**
+     * Get a string representation. Just uses the underlying state (no RPM).
+     * @return
+     */
     std::string toString() const {
         return state.toStringRad();
     }
@@ -77,7 +68,7 @@ public:
     double rpm;
 
     /**
-     * Keep track of the course made good.
+     * Keep track of the course made good. This is used to compare headings between simulated states and idealized ones.
      */
     double courseMadeGood;
 
