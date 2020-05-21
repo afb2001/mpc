@@ -21,6 +21,18 @@ class Controller
 public:
 
     /**
+     * Struct to hold state-control pair (with score). This was originally local to MPC but is now the return type
+     * for that member function.
+     */
+    struct MpcState {
+    public:
+        VehicleState state;
+        double LastRudder{}, LastThrottle{};
+        double Score{};
+        MpcState(): state(State()){};
+    };
+
+    /**
      * Construct a Controller. It needs an instance of a ControlReceiver to publish rudder and throttle
      * pairs and to display trajectories.
      * @param controlReceiver interface which accepts rudders and throttles for publishing
@@ -66,15 +78,14 @@ public:
      * are selected seems to have a sizeable impact on performance, and that optimal values for control granularity
      * might depend on sea state and other environmental factors.
      *
-     * @param r reference to which to assign the final rudder
-     * @param t reference to which to assign the final throttle
-     * @param startCopy starting state for MPC
+     * @param startState starting state for MPC
      * @param referenceTrajectory reference trajectory
      * @param endTime computation deadline
      * @param trajectoryNumber
-     * @return predicted state for next planning iteration (1s ahead)
+     * @return predicted state for next planning iteration (1s ahead), with controls to issue
      */
-    VehicleState mpc(double& r, double& t, State startCopy, const DubinsPlan& referenceTrajectory, double endTime, long trajectoryNumber);
+    MpcState mpc(State startState, const DubinsPlan& referenceTrajectory, double endTime,
+                 long trajectoryNumber);
 
     /**
      * Utility for getting the time. It's public for testing but it really doesn't matter much.
@@ -84,13 +95,13 @@ public:
 
     /**
      * Update the configuration of the controller.
-     * @param rudders
-     * @param throttles
+     * @param rudderGranularity
+     * @param throttleGranularity
      * @param distanceWeight
      * @param headingWeight
      * @param speedWeight
      */
-    void updateConfig(int rudders, int throttles, double distanceWeight, double headingWeight, double speedWeight,
+    void updateConfig(double rudderGranularity, double throttleGranularity, double distanceWeight, double headingWeight, double speedWeight,
                       double achievableThreshold, bool currentEstimation);
 
     /**
@@ -120,12 +131,26 @@ private:
     // whether the
     bool m_Achievable = true;
 
-    // configuration
-    int m_Rudders = 21, m_Throttles = 5;
+    // extreme controls
+    // they're variables because they could end up as part of the exposed config at some point
+    double m_MinRudder = -1, m_MidRudder = 0, m_MaxRudder = 1;
+    double m_MinThrottle = 0, m_MaxThrottle = 1;
+
+    /**
+     * Time (seconds) for controller to think between issuing controls.
+     * A variable in case we want to add it to the exposed config at some point.
+     */
+    double m_PlanningTime = 0.1;
+
+    // configuration (parameters overwritten by dynamic reconfigure versions - see mpc.cfg for defaults)
+    double m_RudderGranularity = 0.0625, m_ThrottleGranularity = 0.125;
     double m_DistanceWeight{}, m_HeadingWeight{}, m_SpeedWeight{};
     // Threshold below which the controller will tell the executive to simply assume the reference trajectory is
     // achievable. Should really be tuned with data somehow.
     double m_AchievableScoreThreshold = 2;
+    // mutex to guard config
+    // Mutable because we need it in const member functions. This is good use of mutable, I think
+    mutable std::mutex m_ConfigMutex;
 
     // most up-to-date state of the vehicle
     std::mutex m_CurrentLocationMutex;
@@ -167,11 +192,9 @@ private:
      * Run MPC until the trajectory gets updated (tested through the trajectory number) or the current trajectory times
      * out. This is designed to be run in a new thread.
      * @param trajectory
-     * @param start
-     * @param result
      * @param trajectoryNumber
      */
-    void runMpc(DubinsPlan trajectory, State start, State result, long trajectoryNumber);
+    void runMpc(DubinsPlan trajectory, long trajectoryNumber);
 
     // Constants
     /**
@@ -182,10 +205,6 @@ private:
      * Tolerance used to circumvent some rounding errors. Pretty arbitrary.
      */
     static constexpr double c_Tolerance = 1.0e-5;
-    /**
-     * Time (seconds) for controller to think between issuing controls.
-     */
-    static constexpr double c_PlanningTime = 0.1;
     /**
      * Flag that lets me set things a little differently for the controller running on its own.
      * This is really a temporary solution but it nicely marks everything that needs to get changed.

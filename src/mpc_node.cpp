@@ -121,7 +121,7 @@ public:
     void reconfigureCallback(mpc::mpcConfig &config, uint32_t level)
     {
         m_Controller->updateConfig(
-                config.rudders, config.throttles,
+                config.rudder_granularity, config.throttle_granularity,
                 config.distance_weight, config.heading_weight, config.speed_weight,
                 config.achievable_threshold, config.current_estimation);
     }

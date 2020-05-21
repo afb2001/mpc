@@ -25,7 +25,7 @@ TEST(UnitTests, headingTowardsTest) {
 TEST(UnitTests, compareStatesTest1) {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 1, 0, false);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 1, 0, false);
     State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, 0.01, 1);
     auto score = controller.compareStates(s1, s2);
     EXPECT_DOUBLE_EQ(score, 1.11);
@@ -34,7 +34,7 @@ TEST(UnitTests, compareStatesTest1) {
 TEST(UnitTests, compareStatesTest2) {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 4, 1, 1, 1, 0, false);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 1, 0, false);
     State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, -0.01, 1);
     auto score = controller.compareStates(s1, s2);
     EXPECT_DOUBLE_EQ(score, 1.11);
@@ -388,7 +388,7 @@ TEST(CurrentEstimatorTests, currentEstimatorTest1)
     currentEstimator.updateEstimate(start.state, -0.8, 1);
     start = start.simulate(-0.8, 1, 1);
     start.state.x() -= 0.4;
-    auto current = currentEstimator.getCurrent(start);
+    auto current = currentEstimator.getCurrent(start.state);
     EXPECT_NEAR(current.first, -0.4, 1.0e-6);
     EXPECT_NEAR(current.second, 0, 1.0e-6);
 }
@@ -450,16 +450,16 @@ TEST(ControllerTests, updateReferenceTrajectoryTest) {
     VehicleState start(State(0,0,0,0,4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0, true);
-    controller.updatePosition(start);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
+    controller.updatePosition(start.state);
     auto current = std::make_pair(0.0, 0.0);
     {
         vector<State> referenceTrajectory;
-        referenceTrajectory.push_back(start);
+        referenceTrajectory.push_back(start.state);
         VehicleState s(start);
         for (int i = 0; i < 30; i++) {
             s = s.simulate(0.2, 1.0, 1, current);
-            referenceTrajectory.push_back(s);
+            referenceTrajectory.push_back(s.state);
         }
         auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
         cerr << result.toString() << endl;
@@ -467,7 +467,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest) {
     for (int i = 0; i < 110; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         start = start.simulate(0.2, 1.0, 0.05, current);
-        controller.updatePosition(start);
+        controller.updatePosition(start.state);
         cerr << start.toString() << endl;
     }
 }
@@ -476,15 +476,15 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
     VehicleState start(State(0,0,0,0,4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(10, 5, 1, 1, 0, 0, true);
-    controller.updatePosition(start);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
+    controller.updatePosition(start.state);
     auto current = std::make_pair(0.0, 0.0);
     vector<State> referenceTrajectory;
-    referenceTrajectory.push_back(start);
+    referenceTrajectory.push_back(start.state);
     VehicleState s(start);
     for (int i = 0; i < 30; i++) {
         s = s.simulate(0.2, 1.0, 1, current);
-        referenceTrajectory.push_back(s);
+        referenceTrajectory.push_back(s.state);
     }
     auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
     EXPECT_NE(result.time(), -1);
@@ -492,7 +492,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
     for (int i = 0; i < 20; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         start = start.simulate(0.2, 1.0, 0.05, current);
-        controller.updatePosition(start);
+        controller.updatePosition(start.state);
         cerr << start.toString() << endl;
     }
     result = controller.updateReferenceTrajectory(referenceTrajectory, 1);
@@ -501,7 +501,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest2) {
     for (int i = 0; i < 110; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         start = start.simulate(0.2, 1.0, 0.05, current);
-        controller.updatePosition(start);
+        controller.updatePosition(start.state);
         cerr << start.toString() << endl;
     }
 }
