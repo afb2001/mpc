@@ -447,64 +447,71 @@ TEST(VehicleStateTests, estimateTest2)
 //}
 
 TEST(ControllerTests, updateReferenceTrajectoryTest) {
-    VehicleState start(State(0,0,0,0,4));
+    VehicleState start(State(0,0,0,2.5,4));
+    // do a semi circle
+    VehicleState next(State(8, 0, M_PI, 2.5, 8 * M_PI / 2.5 + 4));
     NodeStub stub;
     Controller controller(&stub);
     controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
     controller.updatePosition(start.state);
     auto current = std::make_pair(0.0, 0.0);
+    DubinsPath path;
+    path.qi[0] = start.state.x(); path.qi[1] = start.state.y(); path.qi[2] = start.state.yaw();
+    path.param[0] = 0; path.param[1] = M_PI; path.param[2] = 0;
+    path.type = LRL;
+    path.rho = 8;
+    DubinsWrapper wrapper;
+    wrapper.fill(path, 2.5, 4);
+    DubinsPlan plan;
+    plan.append(wrapper);
+    ASSERT_DOUBLE_EQ(plan.getEndTime(), next.state.time());
     {
-        vector<State> referenceTrajectory;
-        referenceTrajectory.push_back(start.state);
-        VehicleState s(start);
-        for (int i = 0; i < 30; i++) {
-            s = s.simulate(0.2, 1.0, 1, current);
-            referenceTrajectory.push_back(s.state);
-        }
-        auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
+        auto result = controller.updateReferenceTrajectory(plan, 0);
         cerr << result.toString() << endl;
     }
     for (int i = 0; i < 110; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        start = start.simulate(0.2, 1.0, 0.05, current);
+        start.state.time() += 0.05;
+        plan.sample(start.state);
+//        start = start.simulate(0.2, 1.0, 0.05, current);
         controller.updatePosition(start.state);
-        cerr << start.toString() << endl;
+//        cerr << start.toString() << endl;
     }
 }
 
-TEST(ControllerTests, updateReferenceTrajectoryTest2) {
-    VehicleState start(State(0,0,0,0,4));
-    NodeStub stub;
-    Controller controller(&stub);
-    controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
-    controller.updatePosition(start.state);
-    auto current = std::make_pair(0.0, 0.0);
-    vector<State> referenceTrajectory;
-    referenceTrajectory.push_back(start.state);
-    VehicleState s(start);
-    for (int i = 0; i < 30; i++) {
-        s = s.simulate(0.2, 1.0, 1, current);
-        referenceTrajectory.push_back(s.state);
-    }
-    auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
-    EXPECT_NE(result.time(), -1);
-    cerr << result.toString() << endl;
-    for (int i = 0; i < 20; i++) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        start = start.simulate(0.2, 1.0, 0.05, current);
-        controller.updatePosition(start.state);
-        cerr << start.toString() << endl;
-    }
-    result = controller.updateReferenceTrajectory(referenceTrajectory, 1);
-    EXPECT_NE(result.time(), -1);
-    cerr << result.toString() << endl;
-    for (int i = 0; i < 110; i++) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        start = start.simulate(0.2, 1.0, 0.05, current);
-        controller.updatePosition(start.state);
-        cerr << start.toString() << endl;
-    }
-}
+//TEST(ControllerTests, updateReferenceTrajectoryTest2) {
+//    VehicleState start(State(0,0,0,0,4));
+//    NodeStub stub;
+//    Controller controller(&stub);
+//    controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
+//    controller.updatePosition(start.state);
+//    auto current = std::make_pair(0.0, 0.0);
+//    vector<State> referenceTrajectory;
+//    referenceTrajectory.push_back(start.state);
+//    VehicleState s(start);
+//    for (int i = 0; i < 30; i++) {
+//        s = s.simulate(0.2, 1.0, 1, current);
+//        referenceTrajectory.push_back(s.state);
+//    }
+//    auto result = controller.updateReferenceTrajectory(referenceTrajectory, 0);
+//    EXPECT_NE(result.time(), -1);
+//    cerr << result.toString() << endl;
+//    for (int i = 0; i < 20; i++) {
+//        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//        start = start.simulate(0.2, 1.0, 0.05, current);
+//        controller.updatePosition(start.state);
+//        cerr << start.toString() << endl;
+//    }
+//    result = controller.updateReferenceTrajectory(referenceTrajectory, 1);
+//    EXPECT_NE(result.time(), -1);
+//    cerr << result.toString() << endl;
+//    for (int i = 0; i < 110; i++) {
+//        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//        start = start.simulate(0.2, 1.0, 0.05, current);
+//        controller.updatePosition(start.state);
+//        cerr << start.toString() << endl;
+//    }
+//}
 
 int main(int argc, char **argv){
     testing::InitGoogleTest(&argc, argv);

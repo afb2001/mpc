@@ -189,7 +189,6 @@ mpcCleanup: // shush I'm using it sparingly and appropriately
 //        << " seconds in the future)" << std::endl;
 
     if (overallBestTrajectory.size() < 2) throw std::runtime_error("MPC failed to complete a single iteration");
-//    r = overallBestTrajectory[1].LastRudder; t = overallBestTrajectory[1].LastThrottle;
     std::vector<State> forDisplay;
     forDisplay.reserve(overallBestTrajectory.size());
     for (const auto& s : overallBestTrajectory) forDisplay.emplace_back(s.state.state);
@@ -336,14 +335,13 @@ void Controller::sendControls(double r, double t) {
 
 void Controller::runMpc(DubinsPlan trajectory, long trajectoryNumber) {
     auto endTime = m_ControlReceiver->getTime() + c_ReferenceTrajectoryExpirationTime;
-    double r = 0, t = 0;
     while (m_ControlReceiver->getTime() < endTime) {
         if (!validTrajectoryNumber(trajectoryNumber)) break;
         auto stateAfterCurrentControl = getStateAfterCurrentControl();
         if (!trajectory.containsTime(stateAfterCurrentControl.state.time() + 3 * c_ScoringTimeStep)) break; // why 3? Seems like a good number of iterations
-        mpc(stateAfterCurrentControl.state, trajectory, m_ControlReceiver->getTime() + m_PlanningTime,
+        auto result = mpc(stateAfterCurrentControl.state, trajectory, m_ControlReceiver->getTime() + m_PlanningTime,
             trajectoryNumber);
-        sendControls(r, t);
+        sendControls(result.LastRudder, result.LastThrottle);
     }
     if (m_ControlReceiver->getTime() >= endTime) {
         std::cerr << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
