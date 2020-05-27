@@ -1,6 +1,6 @@
 #include "CurrentEstimator.h"
 
-CurrentEstimator::CurrentEstimator() { resetCurrentEstimate(); }
+CurrentEstimator::CurrentEstimator() { resetEstimate(); }
 
 void CurrentEstimator::updateEstimate(const State& state, double rudder, double throttle) {
     m_History.emplace_back(state, rudder, throttle);

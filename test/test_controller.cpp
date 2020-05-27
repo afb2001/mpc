@@ -449,7 +449,7 @@ TEST(VehicleStateTests, estimateTest2)
 TEST(ControllerTests, updateReferenceTrajectoryTest) {
     VehicleState start(State(0,0,0,2.5,4));
     // do a semi circle
-    VehicleState next(State(8, 0, M_PI, 2.5, 8 * M_PI / 2.5 + 4));
+    VehicleState next(State(16, 0, M_PI, 2.5, 8 * M_PI / 2.5 + 4));
     NodeStub stub;
     Controller controller(&stub);
     controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
@@ -466,14 +466,13 @@ TEST(ControllerTests, updateReferenceTrajectoryTest) {
     plan.append(wrapper);
     ASSERT_DOUBLE_EQ(plan.getEndTime(), next.state.time());
     {
-        auto result = controller.updateReferenceTrajectory(plan, 0);
+        auto result = controller.updateReferenceTrajectory(plan, 0, true);
         cerr << result.toString() << endl;
     }
     for (int i = 0; i < 110; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         start.state.time() += 0.05;
         plan.sample(start.state);
-//        start = start.simulate(0.2, 1.0, 0.05, current);
         controller.updatePosition(start.state);
 //        cerr << start.toString() << endl;
     }

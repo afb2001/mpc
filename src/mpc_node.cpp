@@ -15,6 +15,8 @@
 #include <dynamic_reconfigure/server.h>
 #include <geographic_msgs/GeoPoint.h>
 #include <path_planner_common/TrajectoryDisplayerHelper.h>
+#include <tf/LinearMath/Quaternion.h>
+#include <tf/LinearMath/Matrix3x3.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
@@ -22,9 +24,11 @@
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
 /**
- * ROS node which manages a model-predictive controller.
+ * ROS node which manages a model-predictive controller. The reference trajectory topic and the update reference
+ * trajectory service should be used with mutual exclusion: both start new threads for MPC, the only difference being
+ * that the service needs to return a state for the planner, and the topic is for other uses (none exist at this time).
  */
-class MPCNode: public ControlReceiver
+class MPCNode final: public ControlReceiver
 {
 public:
     /**
@@ -40,6 +44,8 @@ public:
         m_position_sub = m_node_handle.subscribe("/position_map", 10, &MPCNode::positionCallback, this);
         m_heading_sub = m_node_handle.subscribe("/heading", 10, &MPCNode::headingCallback, this);
         m_speed_sub = m_node_handle.subscribe("/sog", 10, &MPCNode::speedCallback, this);
+        m_piloting_mode_sub = m_node_handle.subscribe("/project11/piloting_mode", 10, &MPCNode::pilotingModeCallback, this);
+        m_reference_trajectory_sub = m_node_handle.subscribe("/mpc/reference_trajectory", 10, &MPCNode::referenceTrajectoryCallback, this);
 
         m_update_reference_trajectory_service = m_node_handle.advertiseService("/mpc/update_reference_trajectory", &MPCNode::updateReferenceTrajectory, this);
 
@@ -51,6 +57,8 @@ public:
         m_Dynamic_Reconfigure_Server.setCallback(f);
 
         m_TrajectoryDisplayer = TrajectoryDisplayerHelper(m_node_handle, &m_display_pub);
+
+        m_Output = &std::cerr;
     }
 
     /**
@@ -69,7 +77,7 @@ public:
     void controllerMsgsCallback(const std_msgs::String::ConstPtr &inmsg)
     {
         std::string message = inmsg->data;
-        std::cerr << "MPC node received message to: " << message << std::endl;
+        *m_Output << "MPC node received message to: " << message << std::endl;
         if (message == "start running") {
             /* Deprecated */
         } else if (message == "start sending controls") {
@@ -105,6 +113,24 @@ public:
      */
     void positionCallback(const geometry_msgs::PoseStamped::ConstPtr &inmsg)
     {
+        // extract yaw from orientation
+        tf::Quaternion q0(inmsg->pose.orientation.x,
+                          inmsg->pose.orientation.y,
+                          inmsg->pose.orientation.z,
+                          inmsg->pose.orientation.w);
+        tf::Matrix3x3 m0(q0);
+        double roll, pitch, yaw;
+        m0.getRPY(roll, pitch, yaw);
+        auto heading = M_PI_2 - yaw; // convert yaw to heading
+
+//        *m_Output << q0.x() << ", " << q0.y() << ", " << q0.z() << ", " << q0.w() << ", " << q0.length() << std::endl;
+
+//        *m_Output << "Roll, pitch, yaw: " << roll << ", " << pitch << ", " << yaw << std::endl;
+
+//        *m_Output << "Calculated heading is: " << heading << std::endl;
+
+//        *m_Output << "Difference between heading and calculated heading is: " << heading - m_current_heading << std::endl;
+
         m_Controller->updatePosition(State(
                 inmsg->pose.position.x,
                 inmsg->pose.position.y,
@@ -127,12 +153,28 @@ public:
     }
 
     /**
+     * Callback to update piloting mode.
+     * @param inmsg
+     */
+    void pilotingModeCallback(const std_msgs::String::ConstPtr& inmsg) {
+        // only enabled when autonomous
+        m_Enabled = inmsg->data == "autonomous";
+        if (!m_Enabled) m_Controller->terminate();
+    }
+
+    void referenceTrajectoryCallback(const path_planner_common::PlanConstPtr& inmsg) {
+        // ignore state returned, just update
+        m_Controller->updateReferenceTrajectory(convertPlanFromMessage(*inmsg), m_TrajectoryNumber++, false);
+    }
+
+    /**
      * Publish a rudder and throttle to /helm.
      * @param rudder rudder command
      * @param throttle throttle command
      */
     void receiveControl(double rudder, double throttle) final
     {
+        if (!m_Enabled) return;
         marine_msgs::Helm helm;
         helm.rudder = rudder;
         helm.throttle = throttle;
@@ -158,7 +200,8 @@ public:
      * @return
      */
     bool updateReferenceTrajectory(path_planner_common::UpdateReferenceTrajectory::Request &req, path_planner_common::UpdateReferenceTrajectory::Response &res) {
-        auto s = m_Controller->updateReferenceTrajectory(convertPlanFromMessage(req.plan), m_TrajectoryNumber++);
+        if (!m_Enabled) return false;
+        auto s = m_Controller->updateReferenceTrajectory(convertPlanFromMessage(req.plan), m_TrajectoryNumber++, true);
         res.state = m_TrajectoryDisplayer.convertToStateMsg(s);
         return s.time() != -1;
     }
@@ -213,6 +256,8 @@ private:
     ros::Subscriber m_position_sub;
     ros::Subscriber m_heading_sub;
     ros::Subscriber m_speed_sub;
+    ros::Subscriber m_piloting_mode_sub;
+    ros::Subscriber m_reference_trajectory_sub;
 
     ros::ServiceServer m_update_reference_trajectory_service;
 
@@ -220,6 +265,10 @@ private:
 
     Controller* m_Controller;
     dynamic_reconfigure::Server<mpc::mpcConfig> m_Dynamic_Reconfigure_Server;
+
+    std::atomic<bool> m_Enabled{}; // share visibility between ROS thread and MPC thread
+
+    std::ostream* m_Output;
 };
 
 int main(int argc, char **argv)

@@ -38,7 +38,7 @@ public:
     /**
      * Reset the estimate of the current to <0, 0> m/s.
      */
-    void resetCurrentEstimate() {
+    void resetEstimate() {
         m_History.clear();
     }
 

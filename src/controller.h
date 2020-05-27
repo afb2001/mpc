@@ -14,7 +14,8 @@
  * Class which runs model predictive control and maintains everything required for it.
  * Model predictive control runs on its own thread, which is launched when it receives an updated reference trajectory.
  * That thread runs until either the next trajectory is received, a timeout is reached, or too little of the trajectory
- * is in the future.
+ * is in the future. With the current settings, it requires at least 3 scoring timesteps worth of future trajectory,
+ * which is 3 seconds.
  */
 class Controller
 {
@@ -48,7 +49,8 @@ public:
      * @param trajectoryNumber
      * @return a state 1 second in the future
      */
-    State updateReferenceTrajectory(const DubinsPlan& referenceTrajectory, long trajectoryNumber);
+    State updateReferenceTrajectory(const DubinsPlan& referenceTrajectory, long trajectoryNumber,
+                                    bool getFutureStateEstimate);
 
     /**
      * Update the controller's idea of the current state of the vehicle. This is expected to be called rather
@@ -156,7 +158,7 @@ private:
     std::mutex m_CurrentLocationMutex;
     State m_CurrentLocation;
 
-    CurrentEstimator m_CurrentEstimator;
+    CurrentEstimator m_DisturbanceEstimator;
 //    OtherCurrentEstimator m_CurrentEstimator;
 
     // There might be a better way to have old threads terminate than checking a counter but this seemed to make sense
@@ -167,6 +169,8 @@ private:
     // Might want to hold a collection of timestamped controls so we know what we've done in the past. I think the
     // current estimator does that, though, and right now that's the only place I can see them being useful.
     double m_LastRudder = 0, m_LastThrottle = 0;
+
+    std::ostream* m_Output;
 
     /**
      * Check that the trajectory number is still valid. Once it updates, the thread should terminate.
@@ -199,6 +203,11 @@ private:
     // Constants
     /**
      * Time interval for scoring against the trajectory (seconds).
+     *
+     * MPC depends on this being the same as the *planner's* planning time because the state returned to the planner
+     * (return value from MPC) is exactly one scoring iteration along the best trajectory. If this changes, or the
+     * planning time changes, that state will need to be calculated based on that other time step and the controls
+     * selected.
      */
     static constexpr double c_ScoringTimeStep = 1;
     /**
