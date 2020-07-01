@@ -26,9 +26,13 @@ double Controller::getTime()
 Controller::MpcState Controller::mpc(State startState, const DubinsPlan& referenceTrajectory, double endTime,
                          long trajectoryNumber)
 {
-    std::pair<double, double> disturbanceEstimate = m_DisturbanceEstimator.getCurrent(startState);
+    // just checking here too so we can skip stuff
+    if (!validTrajectoryNumber(trajectoryNumber)) {
+        return {};
+    }
+//    std::pair<double, double> disturbanceEstimate = m_DisturbanceEstimator.getCurrent(startState);
 
-//    *m_Output << "Current estimated to be " << currentEstimate.first << ", " << currentEstimate.second << std::endl;
+//    *m_Output << "Current estimated to be " << m_DisturbanceEstimate.first << ", " << m_DisturbanceEstimate.second << std::endl;
 
     if (referenceTrajectory.empty()) throw std::runtime_error("Cannot run MPC on an empty plan");
 
@@ -143,7 +147,7 @@ Controller::MpcState Controller::mpc(State startState, const DubinsPlan& referen
             auto& next = currentTrajectory[searchDepthIndex + 1];
             // simulate next state with next controls
             next.state = currentMpcState.state.simulate(
-                    rudders[rudderIndex], throttles[throttleIndex], c_ScoringTimeStep, disturbanceEstimate);
+                    rudders[rudderIndex], throttles[throttleIndex], c_ScoringTimeStep, m_DisturbanceEstimate);
             // store the rudders
             next.LastRudder = rudders[rudderIndex];
             next.LastThrottle = throttles[throttleIndex];
@@ -226,10 +230,10 @@ double Controller::compareStates(const State& s1, const VehicleState& s2) const 
     std::unique_lock<std::mutex> lock(m_ConfigMutex);
     // ignore differences in time
     auto headingDiff = fabs(s1.headingDifference(s2.courseMadeGood));
-    auto speedDiff = fabs(s1.speed() - s2.state.speed());
+    auto speedDiff = fabs(s1.speed() - s2.speedOverGround);
     auto dx = s1.x() - s2.state.x();
     auto dy = s1.y() - s2.state.y();
-    auto d = sqrt(dx * dx + dy * dy);
+    auto d = exp(sqrt(dx * dx + dy * dy)); // changed d to be exponential in distance
     return m_DistanceWeight * d + m_HeadingWeight * headingDiff + m_SpeedWeight * speedDiff;
 }
 
@@ -315,10 +319,14 @@ State Controller::updateReferenceTrajectory(const DubinsPlan& referenceTrajector
             } else {
                 // if the score threshold is set to zero we always plan from controller's prediction, so don't report failure
                 m_Achievable = m_AchievableScoreThreshold == 0;
-                if (!m_Achievable)
+                if (!m_Achievable) {
                     *m_Output << "Controller doesn't think we can make the reference trajectory (score = " << score
                               << ")"
                               << std::endl;
+                }
+                // set heading to course made good, speed to speed over ground (accounting for current)
+                result.state.state.heading() = result.state.courseMadeGood;
+                result.state.state.speed() = result.state.speedOverGround;
             }
         }
         return result.state.state;
@@ -341,9 +349,9 @@ VehicleState Controller::getStateAfterCurrentControl() {
     }
     // TODO! -- figure out concurrency issues here - last controls should be protected somehow
     VehicleState start(startCopy);
-    auto disturbance = m_DisturbanceEstimator.getCurrent(startCopy);
+//    auto disturbance = m_DisturbanceEstimator.getCurrent(startCopy);
     // simulate last issued control to how long it will take us to compute the next one
-    start.simulate(m_LastRudder, m_LastThrottle, m_PlanningTime, disturbance);
+    start.simulate(m_LastRudder, m_LastThrottle, m_PlanningTime, m_DisturbanceEstimate);
     return start;
 }
 
@@ -353,7 +361,7 @@ void Controller::sendControls(double r, double t) {
     m_LastThrottle = t;
     m_ControlReceiver->receiveControl(r, t);
     std::unique_lock<mutex> lock(m_CurrentLocationMutex);
-    m_DisturbanceEstimator.updateEstimate(m_CurrentLocation, r, t);
+//    m_DisturbanceEstimator.updateEstimate(m_CurrentLocation, r, t);
 }
 
 void Controller::runMpc(DubinsPlan trajectory, long trajectoryNumber) {
@@ -380,6 +388,10 @@ void Controller::runMpc(DubinsPlan trajectory, long trajectoryNumber) {
         *m_Output << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
     }
 //    *m_Output << "Ending an old thread running MPC" << endl;
+}
+
+void Controller::updateDisturbanceEstimate(double x, double y) {
+    m_DisturbanceEstimate = std::make_pair(x, y);
 }
 
 

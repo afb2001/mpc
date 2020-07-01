@@ -72,6 +72,11 @@ public:
      */
     double courseMadeGood;
 
+    /**
+     * Keep track of speed over ground, which may differ from the simulated speed in the presence of current.
+     */
+    double speedOverGround;
+
     State state;
 
 private:
@@ -136,6 +141,7 @@ private:
         vehicleState.state.x() += dx;
         vehicleState.state.y() += dy;
         vehicleState.courseMadeGood = M_PI_2 - atan2(dy, dx); // will be the same as heading if current is <0, 0>
+        vehicleState.speedOverGround = sqrt(dx*dx + dy*dy) / d_time; // see above
 
         vehicleState.state.time() += d_time;
         return vehicleState;

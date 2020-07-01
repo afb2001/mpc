@@ -39,7 +39,9 @@ public:
      * Reset the estimate of the current to <0, 0> m/s.
      */
     void resetEstimate() {
+        std::unique_lock<std::mutex> lock(m_HistoryMutex);
         m_History.clear();
+        m_SkipsLeft = 20;
     }
 
     /**
@@ -64,8 +66,13 @@ private:
         VehicleState state;
         double rudder, throttle;
     };
-    std::list<StateControlPair> m_History; // history of state/control pairs
+    // History of state/control pairs. It's a linked list because it's just as fast as a constant sized buffer and
+    // handles non-full buffer and iteration more elegantly
+    std::list<StateControlPair> m_History;
+    mutable std::mutex m_HistoryMutex;
     bool m_Enabled = true;
+    // skip the first few iterations because they might be wonky
+    int m_SkipsLeft = 20;
 
     /**
      * Number of states to keep before we start wrapping around. I don't know what the right number here is, but

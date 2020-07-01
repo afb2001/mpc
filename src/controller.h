@@ -107,6 +107,13 @@ public:
                       double achievableThreshold, bool currentEstimation);
 
     /**
+     * Update the estimate of external forces (typically current, but maybe also wind) in m/s
+     * @param x
+     * @param y
+     */
+    void updateDisturbanceEstimate(double x, double y);
+
+    /**
      * Set the trajectory number. Only public for testing.
      * @param trajectoryNumber
      */
@@ -160,6 +167,7 @@ private:
 
     CurrentEstimator m_DisturbanceEstimator;
 //    OtherCurrentEstimator m_CurrentEstimator;
+    std::pair<double, double> m_DisturbanceEstimate;
 
     // There might be a better way to have old threads terminate than checking a counter but this seemed to make sense
     // to me at the time. That is the sole purpose of these member variables.

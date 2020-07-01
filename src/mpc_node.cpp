@@ -46,6 +46,7 @@ public:
         m_speed_sub = m_node_handle.subscribe("/sog", 10, &MPCNode::speedCallback, this);
         m_piloting_mode_sub = m_node_handle.subscribe("/project11/piloting_mode", 10, &MPCNode::pilotingModeCallback, this);
         m_reference_trajectory_sub = m_node_handle.subscribe("/mpc/reference_trajectory", 10, &MPCNode::referenceTrajectoryCallback, this);
+        m_disturbance_estimate_sub = m_node_handle.subscribe("/disturbance_estimate", 5, &MPCNode::disturbanceEstimateCallback, this);
 
         m_update_reference_trajectory_service = m_node_handle.advertiseService("/mpc/update_reference_trajectory", &MPCNode::updateReferenceTrajectory, this);
 
@@ -84,6 +85,7 @@ public:
             /* Deprecated */
         } else if (message == "terminate") {
             m_Controller->terminate();
+            m_DisturbanceEstimator.resetEstimate();
         } else if (message == "stop sending controls") {
             /* Deprecated */
         }
@@ -131,9 +133,12 @@ public:
 
 //        *m_Output << "Difference between heading and calculated heading is: " << heading - m_current_heading << std::endl;
 
+        m_current_x = inmsg->pose.position.x;
+        m_current_y = inmsg->pose.position.y;
+
         m_Controller->updatePosition(State(
-                inmsg->pose.position.x,
-                inmsg->pose.position.y,
+                m_current_x,
+                m_current_y,
                 m_current_heading,
                 m_current_speed,
                 getTime()));
@@ -150,6 +155,8 @@ public:
                 config.rudder_granularity, config.throttle_granularity,
                 config.distance_weight, config.heading_weight, config.speed_weight,
                 config.achievable_threshold, config.current_estimation);
+        if (config.current_estimation) m_DisturbanceEstimator.enable();
+        else m_DisturbanceEstimator.disable();
     }
 
     /**
@@ -167,6 +174,10 @@ public:
         m_Controller->updateReferenceTrajectory(convertPlanFromMessage(*inmsg), m_TrajectoryNumber++, false);
     }
 
+    void disturbanceEstimateCallback(const geometry_msgs::Vector3::ConstPtr& inmsg) {
+        m_DisturbanceEstimate = std::make_pair(inmsg->x, inmsg->y);
+    }
+
     /**
      * Publish a rudder and throttle to /helm.
      * @param rudder rudder command
@@ -180,6 +191,12 @@ public:
         helm.throttle = throttle;
         helm.header.stamp = ros::Time::now();
         m_helm_pub.publish(helm);
+        // uncomment below (and comment out last line) for current estimation instead of true value
+        State currentState(m_current_x, m_current_y, m_current_heading, m_current_speed, m_TrajectoryDisplayer.getTime());
+        m_DisturbanceEstimator.updateEstimate(currentState, rudder, throttle);
+        auto current = m_DisturbanceEstimator.getCurrent(currentState);
+        m_Controller->updateDisturbanceEstimate(current.first, current.second);
+//        m_Controller->updateDisturbanceEstimate(m_DisturbanceEstimate.first, m_DisturbanceEstimate.second);
     }
 
     /**
@@ -246,6 +263,8 @@ private:
 
     TrajectoryDisplayerHelper m_TrajectoryDisplayer;
 
+    double m_current_x = 0;
+    double m_current_y = 0;
     double m_current_speed = 0; // marginally better than having it initialized with junk
     double m_current_heading = 0;
 
@@ -258,6 +277,7 @@ private:
     ros::Subscriber m_speed_sub;
     ros::Subscriber m_piloting_mode_sub;
     ros::Subscriber m_reference_trajectory_sub;
+    ros::Subscriber m_disturbance_estimate_sub;
 
     ros::ServiceServer m_update_reference_trajectory_service;
 
@@ -267,6 +287,9 @@ private:
     dynamic_reconfigure::Server<mpc::mpcConfig> m_Dynamic_Reconfigure_Server;
 
     std::atomic<bool> m_Enabled{}; // share visibility between ROS thread and MPC thread
+
+    CurrentEstimator m_DisturbanceEstimator;
+    std::pair<double, double> m_DisturbanceEstimate;
 
     std::ostream* m_Output;
 };
