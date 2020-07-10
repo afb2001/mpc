@@ -233,7 +233,8 @@ double Controller::compareStates(const State& s1, const VehicleState& s2) const 
     auto speedDiff = fabs(s1.speed() - s2.speedOverGround);
     auto dx = s1.x() - s2.state.x();
     auto dy = s1.y() - s2.state.y();
-    auto d = exp(sqrt(dx * dx + dy * dy)); // changed d to be exponential in distance
+    // d is now exponential in distance. This means I probably ought to expose a second parameter but I don't have time.
+    auto d = exp(sqrt(dx * dx + dy * dy));
     return m_DistanceWeight * d + m_HeadingWeight * headingDiff + m_SpeedWeight * speedDiff;
 }
 
@@ -319,11 +320,11 @@ State Controller::updateReferenceTrajectory(const DubinsPlan& referenceTrajector
             } else {
                 // if the score threshold is set to zero we always plan from controller's prediction, so don't report failure
                 m_Achievable = m_AchievableScoreThreshold == 0;
-                if (!m_Achievable) {
-                    *m_Output << "Controller doesn't think we can make the reference trajectory (score = " << score
-                              << ")"
-                              << std::endl;
-                }
+//                if (!m_Achievable) {
+//                    *m_Output << "Controller doesn't think we can make the reference trajectory (score = " << score
+//                              << ")"
+//                              << std::endl;
+//                }
                 // set heading to course made good, speed to speed over ground (accounting for current)
                 result.state.state.heading() = result.state.courseMadeGood;
                 result.state.state.speed() = result.state.speedOverGround;
@@ -386,6 +387,8 @@ void Controller::runMpc(DubinsPlan trajectory, long trajectoryNumber) {
     }
     if (m_ControlReceiver->getTime() >= endTime) {
         *m_Output << "Controller's reference trajectory appears to have timed out. No more controls will be issued" << std::endl;
+        // let node know we timed out
+        m_ControlReceiver->timedOut();
     }
 //    *m_Output << "Ending an old thread running MPC" << endl;
 }

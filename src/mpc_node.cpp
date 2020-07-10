@@ -39,6 +39,7 @@ public:
     {
         m_helm_pub = m_node_handle.advertise<marine_msgs::Helm>("/helm",1);
         m_display_pub = m_node_handle.advertise<geographic_visualization_msgs::GeoVizItem>("/project11/display",1);
+        m_disturbance_estimate_pub = m_node_handle.advertise<geometry_msgs::Vector3>("/mpc/disturbance_estimate", 1);
 
         m_controller_msgs_sub = m_node_handle.subscribe("/controller_msgs", 10, &MPCNode::controllerMsgsCallback, this);
         m_position_sub = m_node_handle.subscribe("/position_map", 10, &MPCNode::positionCallback, this);
@@ -83,6 +84,7 @@ public:
             /* Deprecated */
         } else if (message == "start sending controls") {
             /* Deprecated */
+            m_DisturbanceEstimator.resetEstimate(); // eh, why not
         } else if (message == "terminate") {
             m_Controller->terminate();
             m_DisturbanceEstimator.resetEstimate();
@@ -124,14 +126,6 @@ public:
         double roll, pitch, yaw;
         m0.getRPY(roll, pitch, yaw);
         auto heading = M_PI_2 - yaw; // convert yaw to heading
-
-//        *m_Output << q0.x() << ", " << q0.y() << ", " << q0.z() << ", " << q0.w() << ", " << q0.length() << std::endl;
-
-//        *m_Output << "Roll, pitch, yaw: " << roll << ", " << pitch << ", " << yaw << std::endl;
-
-//        *m_Output << "Calculated heading is: " << heading << std::endl;
-
-//        *m_Output << "Difference between heading and calculated heading is: " << heading - m_current_heading << std::endl;
 
         m_current_x = inmsg->pose.position.x;
         m_current_y = inmsg->pose.position.y;
@@ -197,6 +191,13 @@ public:
         auto current = m_DisturbanceEstimator.getCurrent(currentState);
         m_Controller->updateDisturbanceEstimate(current.first, current.second);
 //        m_Controller->updateDisturbanceEstimate(m_DisturbanceEstimate.first, m_DisturbanceEstimate.second);
+        geometry_msgs::Vector3 msg;
+        msg.x = current.first; msg.y = current.second;
+        m_disturbance_estimate_pub.publish(msg);
+    }
+
+    void timedOut() override {
+        m_DisturbanceEstimator.resetEstimate();
     }
 
     /**
@@ -270,6 +271,7 @@ private:
 
     ros::Publisher m_helm_pub;
     ros::Publisher m_display_pub;
+    ros::Publisher m_disturbance_estimate_pub;
 
     ros::Subscriber m_controller_msgs_sub;
     ros::Subscriber m_position_sub;

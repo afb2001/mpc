@@ -24,6 +24,8 @@ public:
      */
     virtual void displayTrajectory(const std::vector<State>& trajectory, bool plannerTrajectory, bool achievable) = 0;
 
+    virtual void timedOut() = 0;
+
     /**
      * Get the current time.
      * @return the current time in seconds
