@@ -25,7 +25,7 @@ TEST(UnitTests, headingTowardsTest) {
 TEST(UnitTests, compareStatesTest1) {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(0.0625, 0.125, 1, 1, 1, 0, false);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 1, 0, false, 0);
     State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, 0.01, 1);
     auto score = controller.compareStates(s1, s2);
     EXPECT_DOUBLE_EQ(score, 1.11);
@@ -34,7 +34,7 @@ TEST(UnitTests, compareStatesTest1) {
 TEST(UnitTests, compareStatesTest2) {
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(0.0625, 0.125, 1, 1, 1, 0, false);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 1, 0, false, 0);
     State s1(0, 0, 0, 0, 1), s2(0, 1, 0.1, -0.01, 1);
     auto score = controller.compareStates(s1, s2);
     EXPECT_DOUBLE_EQ(score, 1.11);
@@ -452,7 +452,7 @@ TEST(ControllerTests, updateReferenceTrajectoryTest) {
     VehicleState next(State(16, 0, M_PI, 2.5, 8 * M_PI / 2.5 + 4));
     NodeStub stub;
     Controller controller(&stub);
-    controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true);
+    controller.updateConfig(0.0625, 0.125, 1, 1, 0, 0, true, 0);
     controller.updatePosition(start.state);
     auto current = std::make_pair(0.0, 0.0);
     DubinsPath path;

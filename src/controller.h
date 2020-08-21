@@ -103,8 +103,9 @@ public:
      * @param headingWeight
      * @param speedWeight
      */
-    void updateConfig(double rudderGranularity, double throttleGranularity, double distanceWeight, double headingWeight, double speedWeight,
-                      double achievableThreshold, bool currentEstimation);
+    void updateConfig(double rudderGranularity, double throttleGranularity, double distanceWeight,
+                      double headingWeight, double speedWeight, double achievableThreshold,
+                      bool currentEstimation, double timeout);
 
     /**
      * Update the estimate of external forces (typically current, but maybe also wind) in m/s
@@ -157,6 +158,12 @@ private:
     // Threshold below which the controller will tell the executive to simply assume the reference trajectory is
     // achievable. Should really be tuned with data somehow.
     double m_AchievableScoreThreshold = 2;
+    /**
+     * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
+     * are received.
+     */
+    double m_ReferenceTrajectoryExpirationTime = 5;
+
     // mutex to guard config
     // Mutable because we need it in const member functions. This is good use of mutable, I think
     mutable std::mutex m_ConfigMutex;
@@ -222,16 +229,6 @@ private:
      * Tolerance used to circumvent some rounding errors. Pretty arbitrary.
      */
     static constexpr double c_Tolerance = 1.0e-5;
-    /**
-     * Flag that lets me set things a little differently for the controller running on its own.
-     * This is really a temporary solution but it nicely marks everything that needs to get changed.
-     */
-    static constexpr bool c_ControllerTestMode = false;
-    /**
-     * Time (seconds) to continue to use a reference trajectory after the planner has issued it, if no new trajectories
-     * are received.
-     */
-    static constexpr double c_ReferenceTrajectoryExpirationTime = c_ControllerTestMode? 50000000 : 5;
 
 };
 

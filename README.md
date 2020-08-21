@@ -1,0 +1,2 @@
+# Model Predictive Controller node
+Model predictive controller which interacts with a ROS ASV path planner. See <a href="https://github.com/afb2001/path_planner">that repository</a> for installation and usage instructions.

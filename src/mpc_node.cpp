@@ -148,7 +148,7 @@ public:
         m_Controller->updateConfig(
                 config.rudder_granularity, config.throttle_granularity,
                 config.distance_weight, config.heading_weight, config.speed_weight,
-                config.achievable_threshold, config.current_estimation);
+                config.achievable_threshold, config.current_estimation, config.timeout);
         if (config.current_estimation) m_DisturbanceEstimator.enable();
         else m_DisturbanceEstimator.disable();
     }

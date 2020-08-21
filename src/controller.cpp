@@ -217,13 +217,15 @@ void Controller::updatePosition(State state) {
     m_CurrentLocationMutex.unlock();
 }
 
-void Controller::updateConfig(double rudderGranularity, double throttleGranularity, double distanceWeight, double headingWeight,
-                              double speedWeight, double achievableThreshold, bool currentEstimation) {
+void Controller::updateConfig(double rudderGranularity, double throttleGranularity, double distanceWeight,
+                              double headingWeight, double speedWeight, double achievableThreshold,
+                              bool currentEstimation, double timeout) {
     std::unique_lock<std::mutex> lock(m_ConfigMutex);
     m_RudderGranularity = rudderGranularity; m_ThrottleGranularity = throttleGranularity;
     m_DistanceWeight = distanceWeight; m_HeadingWeight = headingWeight; m_SpeedWeight = speedWeight;
     m_AchievableScoreThreshold = achievableThreshold;
     if (currentEstimation) m_DisturbanceEstimator.enable(); else m_DisturbanceEstimator.disable();
+    m_ReferenceTrajectoryExpirationTime = timeout;
 }
 
 double Controller::compareStates(const State& s1, const VehicleState& s2) const {
@@ -370,7 +372,7 @@ void Controller::runMpc(DubinsPlan trajectory, long trajectoryNumber) {
     // receives a copy of the reference trajectory because we don't want a reference to a local variable which will
     // go out of scope while we're using it
     // first, calculate when this reference trajectory expires
-    auto endTime = m_ControlReceiver->getTime() + c_ReferenceTrajectoryExpirationTime;
+    auto endTime = m_ControlReceiver->getTime() + m_ReferenceTrajectoryExpirationTime;
     // while it has not expired,
     while (m_ControlReceiver->getTime() < endTime) {
         // make sure no new trajectory has come in, invalidating this one
